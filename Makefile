@@ -1,7 +1,7 @@
 .PHONY: all install clean
 
-TARGETNAMEWIN				:= Atlantr-Extreme-Win
-TARGETNAMELINUX				:= Altantr-Extreme-Unix
+TARGETNAMEWIN				:= Atlantr-Extreme-Win.exe
+TARGETNAMELINUX				:= Altantr-Extreme-Unix.elf
 
 all: windows linux
 
