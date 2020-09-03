@@ -19,6 +19,11 @@ import (
 	"github.com/pierelucas/atlantr-extreme/utils"
 )
 
+const (
+	upload  = false
+	backend = "localhost:56650"
+)
+
 func main() {
 	var err error
 
@@ -94,6 +99,11 @@ func main() {
 		}(),
 	}
 
+	// Now we have to create two channels with a buffer of one.
+	// We will store our valid filename and our notfoudn filename in then later
+	validFileNameCH := make(chan string, 1)
+	notFoundFileNameCH := make(chan string, 1)
+
 	// Now we start our workers but wait on each routine until startCH is closed
 	wg := &sync.WaitGroup{}
 	startCH := make(chan struct{})
@@ -103,8 +113,8 @@ func main() {
 	}
 
 	go Producer(ctx, smobj, conf.USERVALUE.GetMAILPASS(), startLine, startCH)
-	go Writer(ctx, smobj.resultCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetVALIDFILE())
-	go Writer(ctx, smobj.notFoundCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetNOTFOUNDFILE())
+	go Writer(ctx, smobj.resultCH, validFileNameCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetVALIDFILE())
+	go Writer(ctx, smobj.notFoundCH, notFoundFileNameCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetNOTFOUNDFILE())
 
 	// Start all routines
 	func() {
@@ -135,6 +145,30 @@ func main() {
 		err = ioutil.WriteFile(llFilename, d1, 0644)
 		utils.CheckError(err)
 	}()
+
+	// Upload our files to backend if upload is set to true
+	if upload {
+		if err = func() error {
+			validData, err := ioutil.ReadFile(<-validFileNameCH)
+			if err != nil {
+				return err
+			}
+
+			notFoundData, err := ioutil.ReadFile(<-notFoundFileNameCH)
+			if err != nil {
+				return err
+			}
+
+			pair := data.NewPair(validData, notFoundData)
+			if err = pair.SendToServer(backend); err != nil {
+				return err
+			}
+
+			return nil
+		}(); err != nil {
+			log.Print(err)
+		}
+	}
 
 	log.Println("Atlantr-Extreme is shutting down...")
 	return // EXIT_SUCCESS
