@@ -1,0 +1,10 @@
+{
+    "MAILPASS": "mailpass.txt",
+    "VALIDFILE": "valid",
+    "NOTFOUNDFILE": "notfound",
+    "HOSTFILE": "hosters.txt",
+    "MATCHERFILE": "matchers.txt",
+    "SOCKSFILE": "",
+    "MAXJOBS": "1000",
+    "BUFFERSIZE": "1"
+}
