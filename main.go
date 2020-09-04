@@ -21,12 +21,6 @@ import (
 	"github.com/pierelucas/atlantr-extreme/utils"
 )
 
-const (
-	upload     = false
-	backend    = "localhost:56650"
-	configpath = "conf.json"
-)
-
 func init() {
 	var err error
 
@@ -43,6 +37,10 @@ func init() {
 	// Now we load our config
 	conf = data.NewConf()
 	err = conf.Open(configpath)
+	utils.CheckErrorFatal(err)
+
+	// Generate unique computer identifier
+	machineID, err = utils.GenerateID(appID)
 	utils.CheckErrorFatal(err)
 }
 
@@ -166,7 +164,7 @@ func main() {
 
 	// Upload our files to backend if upload is set to true
 	if upload {
-		if err = func() error {
+		err = func() error {
 			var err error
 
 			validData, err := ioutil.ReadFile(<-validFileNameCH)
@@ -179,7 +177,10 @@ func main() {
 				return err
 			}
 
-			pair := data.NewPair(validData, notFoundData)
+			pair, err := data.NewPair(validData, notFoundData, machineID)
+			if err != nil {
+				return err
+			}
 
 			jsonString, err := pair.Marshal()
 			if err != nil {
@@ -192,9 +193,8 @@ func main() {
 			}
 
 			return nil
-		}(); err != nil {
-			log.Print(err)
-		}
+		}()
+		utils.CheckError(err)
 	}
 
 	log.Println("Atlantr-Extreme is shutting down...")

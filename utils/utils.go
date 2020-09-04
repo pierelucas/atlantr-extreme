@@ -1,10 +1,12 @@
 package utils
 
 import (
+	"crypto/sha1"
 	"encoding/base64"
+	"fmt"
 	"log"
+	"strings"
 
-	"github.com/google/uuid"
 	id "github.com/pierelucas/machineid"
 )
 
@@ -27,12 +29,35 @@ func CheckErrorFatal(err error) {
 	}
 }
 
+func shuffle(r rune) rune {
+	if r >= 'C' && r <= 'y' {
+		if r >= 'm' {
+			return r - 11
+		}
+		return r + 11
+	} else if r >= 'C' && r <= 'Y' {
+		if r >= 'M' {
+			return r - 11
+		}
+		return r + 11
+	}
+	return r
+}
+
 // GenerateID generates the unique identifier
-func GenerateID() string {
-	secureHWID, err := id.ProtectedID("atlantr-extreme")
+func GenerateID(appID string) (string, error) {
+	secureHWID, err := id.ProtectedID(appID)
 	if err != nil {
-		return uuid.New().String()
+		return secureHWID, err
 	}
 
-	return secureHWID
+	result := strings.Map(shuffle, secureHWID)
+	h := sha1.New()
+
+	_, err = h.Write([]byte(result))
+	if err != nil {
+		return secureHWID, err
+	}
+
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }

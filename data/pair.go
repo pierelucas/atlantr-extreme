@@ -2,8 +2,6 @@ package data
 
 import (
 	"encoding/json"
-
-	"github.com/pierelucas/atlantr-extreme/utils"
 )
 
 // Pair --
@@ -14,15 +12,12 @@ type Pair struct {
 }
 
 // NewPair generates a new pair and calls utils.GenerateID
-func NewPair(vdata, nfdata []byte) *Pair {
-	// Generate computer ID
-	uuid := utils.GenerateID()
-
+func NewPair(vdata, nfdata []byte, id string) (*Pair, error) {
 	return &Pair{
-		ID:           value(uuid),
+		ID:           value(id),
 		VALIDDATA:    value(vdata),
 		NOTFOUNDDATA: value(nfdata),
-	}
+	}, nil
 }
 
 // Marshal return marshalled json string
