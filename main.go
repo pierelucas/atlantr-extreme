@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pierelucas/atlantr-extreme/conn"
+
 	"github.com/pierelucas/atlantr-extreme/data"
 	"github.com/pierelucas/atlantr-extreme/parse"
 	"github.com/pierelucas/atlantr-extreme/proxy"
@@ -20,9 +22,29 @@ import (
 )
 
 const (
-	upload  = false
-	backend = "localhost:56650"
+	upload     = false
+	backend    = "localhost:56650"
+	configpath = "conf.json"
 )
+
+func init() {
+	var err error
+
+	if _, err := os.Stat(configpath); os.IsNotExist(err) {
+		log.Printf("no config file found: %s\n", configpath)
+
+		conf := data.NewUserValues()
+		err = conf.Write(configpath)
+		utils.CheckErrorFatal(err)
+
+		log.Fatalf("successfull creating empty config file: %s\n", configpath)
+	}
+
+	// Now we load our config
+	conf = data.NewConf()
+	err = conf.Open(configpath)
+	utils.CheckErrorFatal(err)
+}
 
 func main() {
 	var err error
@@ -54,10 +76,6 @@ func main() {
 		cancel()
 	}()
 
-	// Now we load our config
-	conf, err = data.NewConf("conf.json")
-	utils.CheckErrorFatal(err)
-
 	// Parse Data from files to global variables
 	// Parse hosterData, that is the data holding the hostaddress and imap port of several mail providers
 	hosterData, err = parse.Hosters(conf.USERVALUE.GetHOSTFILE())
@@ -78,7 +96,7 @@ func main() {
 		utils.CheckErrorFatal(err)
 		startLine++
 		lastline = uint64(startLine)
-		log.Printf("resuming %s from line: %d\n", conf.USERVALUE.GetMAILPASS(), startLine)
+		log.Printf("resuming %s from line: %d\n", *flagINPUT, startLine)
 	}
 
 	// Now we make our needed channels and parse our proxies when USESOCKS is true otherwise validProxies is nil
@@ -112,9 +130,9 @@ func main() {
 		go WorkerStateMachine(ctx, smobj, startCH, wg)
 	}
 
-	go Producer(ctx, smobj, conf.USERVALUE.GetMAILPASS(), startLine, startCH)
-	go Writer(ctx, smobj.resultCH, validFileNameCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetVALIDFILE())
-	go Writer(ctx, smobj.notFoundCH, notFoundFileNameCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetNOTFOUNDFILE())
+	go Producer(ctx, smobj, *flagINPUT, startLine, startCH)
+	go Writer(ctx, smobj.resultCH, validFileNameCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetVALIDFILE(), startCH)
+	go Writer(ctx, smobj.notFoundCH, notFoundFileNameCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetNOTFOUNDFILE(), startCH)
 
 	// Start all routines
 	func() {
@@ -149,6 +167,8 @@ func main() {
 	// Upload our files to backend if upload is set to true
 	if upload {
 		if err = func() error {
+			var err error
+
 			validData, err := ioutil.ReadFile(<-validFileNameCH)
 			if err != nil {
 				return err
@@ -160,7 +180,14 @@ func main() {
 			}
 
 			pair := data.NewPair(validData, notFoundData)
-			if err = pair.SendToServer(backend); err != nil {
+
+			jsonString, err := pair.Marshal()
+			if err != nil {
+				return err
+			}
+
+			err = conn.Send(jsonString, backend)
+			if err != nil {
 				return err
 			}
 

@@ -1,11 +1,17 @@
 package utils
 
 import (
+	"encoding/base64"
 	"log"
 
 	"github.com/google/uuid"
 	id "github.com/pierelucas/machineid"
 )
+
+// Base64Encode --
+func Base64Encode(str string) string {
+	return base64.StdEncoding.EncodeToString([]byte(str))
+}
 
 // CheckError and print if err != nil
 func CheckError(err error) {

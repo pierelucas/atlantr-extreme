@@ -24,7 +24,10 @@ import (
 func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	<-startCH // Wait till all goroutines has started
+	<-startCH // Wait till the main routine is ready
+
+	// initalize a new imaper struct
+	imaper := imap.NewImap(matcherData, conf.GetUSESOCKS(), conf.GetPROCESSMAILS())
 
 	for {
 		select {
@@ -65,13 +68,13 @@ func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{},
 			}
 
 			// Now we call the IMAP Handler
-			valid, err := imap.IMAPutil(matcherData, conf.GetUSESOCKS(), conf.GetPROCESSMAILS(), socksAddr, addr, j.User, j.Pass)
+			valid, err := imaper.IMAPutil(socksAddr, addr, j.User, j.Pass)
 			if err != nil {
 				log.Printf("%v : %s\n", err, j.User)
 				continue
 			}
 
-			// When the result
+			// When the result is valid, send the job in the resultCH channel to the writer function
 			switch valid {
 			case true:
 				log.Printf("Valid: %s\n", j.User)
@@ -82,13 +85,15 @@ func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{},
 
 			// Chill down
 			// TODO: Maybe we will delete this later
-			time.Sleep(time.Millisecond * 3)
+			time.Sleep(time.Millisecond)
 		}
 	}
 }
 
 // Producer --
 func Producer(ctx context.Context, smobj *sm, path string, startLine int, startCH <-chan struct{}) {
+	<-startCH // Wait till the main routine is ready
+
 	f, err := os.Open(path)
 	utils.CheckErrorFatal(err)
 	defer f.Close()
@@ -121,7 +126,9 @@ func Producer(ctx context.Context, smobj *sm, path string, startLine int, startC
 }
 
 // Writer --
-func Writer(ctx context.Context, result <-chan *Job, fileNameCH chan<- string, bufferSize int, path string) {
+func Writer(ctx context.Context, result <-chan *Job, fileNameCH chan<- string, bufferSize int, path string, startCH <-chan struct{}) {
+	<-startCH // Wait till the main routine is ready
+
 	var lineBreak string
 
 	// got linebreak on differrent architectures
@@ -175,5 +182,4 @@ func Writer(ctx context.Context, result <-chan *Job, fileNameCH chan<- string, b
 			utils.CheckError(err)
 		}
 	}
-
 }

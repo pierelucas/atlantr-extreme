@@ -11,7 +11,6 @@ import (
 
 // UserValues json key
 type UserValues struct {
-	MAILPASS     value
 	VALIDFILE    value
 	NOTFOUNDFILE value
 	HOSTFILE     value
@@ -26,8 +25,8 @@ func NewUserValues() *UserValues {
 	return &UserValues{}
 }
 
-// Parse the json file
-func (uv *UserValues) Parse(filename string) error {
+// Open the json file
+func (uv *UserValues) Open(filename string) error {
 	in, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -44,14 +43,22 @@ func (uv *UserValues) Parse(filename string) error {
 	return nil
 }
 
-// GetMAILPASS returns the filename of MAILPASS file
-func (uv *UserValues) GetMAILPASS() string {
-	return uv.MAILPASS.String()
-}
+// Write the json file
+func (uv *UserValues) Write(filename string) error {
+	out, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
 
-// SetMAILPASS sets a new filename for the MAILPASS file
-func (uv *UserValues) SetMAILPASS(filename string) {
-	uv.MAILPASS = value(filename)
+	defer out.Close()
+
+	encodeJSON := json.NewEncoder(out)
+	err = encodeJSON.Encode(uv)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetVALIDFILE returns the filename of VALID MAILPASS file
@@ -134,17 +141,22 @@ type Config struct {
 	USERVALUE    *UserValues
 }
 
-// NewConf parses the JSON UserValues and initialize a new general config.
+// NewConf return new parser object
+func NewConf() *Config {
+	return &Config{}
+}
+
+// Open parses the JSON UserValues and initialize a new general config.
 // Also NewConf set GOMAXPROCS to our number of available CPU cores on this machine
 // It
-func NewConf(filename string) (*Config, error) {
+func (c *Config) Open(filename string) error {
 	var err error
 
 	// Now lets parse our UserValue json config file
 	uval := NewUserValues()
-	err = uval.Parse(filename)
+	err = uval.Open(filename)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Now lets find out how many workers we can effectivly use on this computer
@@ -152,12 +164,13 @@ func NewConf(filename string) (*Config, error) {
 	cores := runtime.NumCPU()
 	_ = runtime.GOMAXPROCS(cores)
 
-	return &Config{
-		WORKERS:      value(strconv.Itoa(cores)),
-		USESOCKS:     uval.GetSOCKSFILE() != "",
-		PROCESSMAILS: uval.GetMATCHERFILE() != "",
-		USERVALUE:    uval,
-	}, nil
+	// Set the values
+	c.WORKERS = value(strconv.Itoa(cores))
+	c.USESOCKS = uval.GetSOCKSFILE() != ""
+	c.PROCESSMAILS = uval.GetMATCHERFILE() != ""
+	c.USERVALUE = uval
+
+	return nil
 }
 
 // GetWorkers returns the currently num of cpu workers

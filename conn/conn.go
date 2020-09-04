@@ -1,18 +1,15 @@
 package conn
 
 import (
-	"encoding/base64"
 	"fmt"
 
+	"github.com/pierelucas/atlantr-extreme/utils"
 	"github.com/pierelucas/gorpc"
 )
 
-func base64Encode(str string) string {
-	return base64.StdEncoding.EncodeToString([]byte(str))
-}
-
+// Send the payload to the backend server
 func Send(payload string, backend string) error {
-	encodedPayload := base64Encode(payload)
+	encodedPayload := utils.Base64Encode(payload)
 
 	// RPC Client
 	c := &gorpc.Client{
@@ -28,8 +25,9 @@ func Send(payload string, backend string) error {
 	if err != nil {
 		return err
 	}
-	if resp.(string) != encodedPayload {
-		err := fmt.Errorf("Unexpected response from the server: %+v", resp)
+
+	if resp.(int) != 0 {
+		err := fmt.Errorf("There was an error on Serverside: %+v", resp)
 		return err
 	}
 

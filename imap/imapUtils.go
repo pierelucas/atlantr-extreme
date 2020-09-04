@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pierelucas/atlantr-extreme/utils"
+
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/emersion/go-message/mail"
@@ -14,10 +16,27 @@ import (
 	"golang.org/x/net/proxy"
 )
 
-func IMAPutil(sendersToSave []string, useSocks bool, proccessEmails bool, socksAddr string,
-	addr string, emailUser string, emailPassword string) (bool, error) {
+// Imaper --
+type Imaper struct {
+	sendersToSave  []string
+	useSocks       bool
+	proccessEmails bool
+}
+
+// NewImap --
+func NewImap(sendersToSave []string, useSocks, proccessEmails bool) *Imaper {
+	return &Imaper{
+		sendersToSave:  sendersToSave,
+		useSocks:       useSocks,
+		proccessEmails: proccessEmails,
+	}
+}
+
+// IMAPutil --
+func (im *Imaper) IMAPutil(socksAddr string, addr string, emailUser string, emailPassword string) (bool, error) {
 	var c *client.Client
-	if useSocks {
+
+	if im.useSocks {
 		cc, err := connextWithSocks5(socksAddr, addr)
 		if err != nil {
 			return false, err
@@ -38,8 +57,8 @@ func IMAPutil(sendersToSave []string, useSocks bool, proccessEmails bool, socksA
 		return false, err
 	}
 
-	if proccessEmails {
-		inboxProcessing(c, sendersToSave)
+	if im.proccessEmails {
+		inboxProcessing(c, im.sendersToSave)
 	}
 	return true, nil
 }
@@ -48,6 +67,7 @@ func inboxProcessing(c *client.Client, sendersToSave []string) {
 	// List mailboxes
 	mailboxes := make(chan *imap.MailboxInfo, 100)
 	done := make(chan error, 1)
+
 	go func() {
 		done <- c.List("", "*", mailboxes)
 	}()
@@ -67,7 +87,6 @@ func inboxProcessing(c *client.Client, sendersToSave []string) {
 func findMatchingSenders(mailboxList []string, c *client.Client, sendersToSave []string) {
 	for i := range mailboxList {
 		mbox, err := c.Select(mailboxList[i], true)
-
 		if err != nil {
 			//log.Println(err)
 			continue
@@ -92,6 +111,7 @@ func findMatchingSenders(mailboxList []string, c *client.Client, sendersToSave [
 
 		messages := make(chan *imap.Message, maxMessagesToGet+1)
 		done := make(chan error, 1)
+
 		go func() {
 			done <- c.Fetch(seqset, items, messages)
 		}()
@@ -125,6 +145,7 @@ func findMatchingSenders(mailboxList []string, c *client.Client, sendersToSave [
 				//log.Println("header", err)
 				continue
 			}
+
 			if len(from) < 1 {
 				continue
 			}
@@ -141,6 +162,7 @@ func findMatchingSenders(mailboxList []string, c *client.Client, sendersToSave [
 							//log.Println("part", err)
 							continue
 						}
+
 						switch h := p.Header.(type) {
 						case *mail.InlineHeader:
 							// This is the message's text (can be plain-text or HTML)
@@ -152,6 +174,7 @@ func findMatchingSenders(mailboxList []string, c *client.Client, sendersToSave [
 								//singleSpacePattern := regexp.MustCompile(`\s+`)
 								//bbb := singleSpacePattern.ReplaceAllString(bb, " ")
 								//log.Println(bbb)
+
 								appendStringToFile(sendersToSave[i], bb)
 							}
 						case *mail.AttachmentHeader:
@@ -175,20 +198,19 @@ func connectTLS(addr string) (*client.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return c, nil
 }
 
 func connextWithSocks5(socksAddr string, addr string) (*client.Client, error) {
 	// create a socks5 dialer
 	dialer, err := proxy.SOCKS5("tcp", socksAddr, nil, proxy.Direct)
-
 	if err != nil {
 		return nil, err
 	}
 
 	// Connect to server
 	c, err := client.DialWithDialerTLS(dialer, addr, nil)
-
 	if err != nil {
 		return nil, err
 	}
@@ -197,14 +219,12 @@ func connextWithSocks5(socksAddr string, addr string) (*client.Client, error) {
 }
 
 func appendStringToFile(fileName string, text string) {
-	f, err := os.OpenFile(fileName,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Println(err)
-	}
+	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	utils.CheckError(err)
 	defer f.Close()
-	divider := "$#------------this separates emails---------------#$"
-	if _, err := f.WriteString(text + divider); err != nil {
-		log.Println(err)
-	}
+
+	divider := "\r\n\r\n$#------------this separates emails---------------#$\r\n\r\n"
+
+	_, err = f.WriteString(text + divider)
+	utils.CheckError(err)
 }
