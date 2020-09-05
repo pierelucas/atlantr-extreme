@@ -2,17 +2,17 @@ package data
 
 import "strconv"
 
-type value string
+type Value string
 
-func (v *value) Int() int {
+func (v *Value) Int() int {
 	s, _ := strconv.Atoi(string(*v))
 	return s
 }
 
-func (v *value) String() string {
+func (v *Value) String() string {
 	return string(*v)
 }
 
-func (v *value) ToByte() []byte {
+func (v *Value) ToByte() []byte {
 	return []byte(*v)
 }

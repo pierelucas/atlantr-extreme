@@ -6,6 +6,10 @@ const (
 	upload  = false
 	backend = "localhost:56650"
 
+	licenseSystem        = false
+	licenseSystemBackend = "localhost:56651"
+	licensepath          = "license.dat"
+
 	appID = "7881B883764f54B5"
 
 	configpath          = "conf.json"

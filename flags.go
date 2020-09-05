@@ -24,7 +24,7 @@ var (
 	)
 )
 
-func init() {
+func parseFlags() {
 	flag.Parse() // Parse our command-line arguments
 
 	if *flagINPUT == "" {

@@ -11,13 +11,13 @@ import (
 
 // UserValues json key
 type UserValues struct {
-	VALIDFILE    value
-	NOTFOUNDFILE value
-	HOSTFILE     value
-	MATCHERFILE  value
-	SOCKSFILE    value
-	MAXJOBS      value
-	BUFFERSIZE   value
+	VALIDFILE    Value
+	NOTFOUNDFILE Value
+	HOSTFILE     Value
+	MATCHERFILE  Value
+	SOCKSFILE    Value
+	MAXJOBS      Value
+	BUFFERSIZE   Value
 }
 
 // NewUserValues return new parser object
@@ -68,7 +68,7 @@ func (uv *UserValues) GetVALIDFILE() string {
 
 // SetVALIDFILE sets a new filename for the VALID MAILPASS file
 func (uv *UserValues) SetVALIDFILE(filename string) {
-	uv.VALIDFILE = value(filename)
+	uv.VALIDFILE = Value(filename)
 }
 
 // GetNOTFOUNDFILE returns the filename of NOTFOUND MAILPASS file
@@ -78,7 +78,7 @@ func (uv *UserValues) GetNOTFOUNDFILE() string {
 
 // SetNOTFOUNDFILE sets a new filename for the NOTFOUNDFILE MAILPASS file
 func (uv *UserValues) SetNOTFOUNDFILE(filename string) {
-	uv.NOTFOUNDFILE = value(filename)
+	uv.NOTFOUNDFILE = Value(filename)
 }
 
 // GetHOSTFILE returns the filename of Hostfile
@@ -88,7 +88,7 @@ func (uv *UserValues) GetHOSTFILE() string {
 
 // SetHOSTFILE sets a new filename for the Hostfile
 func (uv *UserValues) SetHOSTFILE(filename string) {
-	uv.HOSTFILE = value(filename)
+	uv.HOSTFILE = Value(filename)
 }
 
 // GetMATCHERFILE returns the filename of the Matcherfile
@@ -98,7 +98,7 @@ func (uv *UserValues) GetMATCHERFILE() string {
 
 // SetMATCHERFILE sets a new filename for the Matcherfile
 func (uv *UserValues) SetMATCHERFILE(filename string) {
-	uv.MATCHERFILE = value(filename)
+	uv.MATCHERFILE = Value(filename)
 }
 
 // GetSOCKSFILE returns the filename of the Socksfile
@@ -108,7 +108,7 @@ func (uv *UserValues) GetSOCKSFILE() string {
 
 // SetSOCKSFILE sets a new filename for the Socksfile
 func (uv *UserValues) SetSOCKSFILE(filename string) {
-	uv.SOCKSFILE = value(filename)
+	uv.SOCKSFILE = Value(filename)
 }
 
 // GetMAXJOBS returns the num of max jobs hold in memory
@@ -118,7 +118,7 @@ func (uv *UserValues) GetMAXJOBS() int {
 
 // SetMAXJOBS sets num of max jobs hold in memory
 func (uv *UserValues) SetMAXJOBS(n int) {
-	uv.MAXJOBS = value(strconv.Itoa(n))
+	uv.MAXJOBS = Value(strconv.Itoa(n))
 }
 
 // GetBUFFERSIZE returns the amount of bytes holding in the memory
@@ -128,14 +128,14 @@ func (uv *UserValues) GetBUFFERSIZE() int {
 
 // SetBUFFERSIZE sets the amount of bytes holding in the memory
 func (uv *UserValues) SetBUFFERSIZE(n int) {
-	uv.BUFFERSIZE = value(strconv.Itoa(n))
+	uv.BUFFERSIZE = Value(strconv.Itoa(n))
 }
 
 //----------------- General Config --------------------
 
 // Config is our general config struct and holds the parsed UserValues
 type Config struct {
-	WORKERS      value
+	WORKERS      Value
 	USESOCKS     bool
 	PROCESSMAILS bool
 	USERVALUE    *UserValues
@@ -165,7 +165,7 @@ func (c *Config) Open(filename string) error {
 	_ = runtime.GOMAXPROCS(cores)
 
 	// Set the values
-	c.WORKERS = value(strconv.Itoa(cores))
+	c.WORKERS = Value(strconv.Itoa(cores))
 	c.USESOCKS = uval.GetSOCKSFILE() != ""
 	c.PROCESSMAILS = uval.GetMATCHERFILE() != ""
 	c.USERVALUE = uval
@@ -181,7 +181,7 @@ func (c *Config) GetWorkers() int {
 // SetWorkers set another num of workers as system default
 // AWARE, this should not be used in production!!
 func (c *Config) SetWorkers(workers int) {
-	c.WORKERS = value(strconv.Itoa(workers))
+	c.WORKERS = Value(strconv.Itoa(workers))
 }
 
 // GetUSESOCKS returns if a socks proxy is used or not

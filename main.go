@@ -6,6 +6,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -13,10 +14,14 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/pierelucas/atlantr-extreme/license"
+	"github.com/pierelucas/atlantr-extreme/uploader"
 
 	"github.com/pierelucas/atlantr-extreme/conn"
 
@@ -29,9 +34,55 @@ import (
 func init() {
 	var err error
 
+	// Generate unique computer identifier
+	machineID, err = utils.GenerateID(appID)
+	utils.CheckErrorFatal(err)
+
+	// check for a valid license if licenseSystem is set to true
+	// We do this before any user input or any input validation can happen
+	if licenseSystem {
+		// Check if there is a license.dat file in our working folder
+		var licenseKey string
+		if _, err := os.Stat(licensepath); os.IsNotExist(err) {
+			fmt.Printf("no license file found: %s\n", licensepath)
+
+			// read license key from commandline
+			read := bufio.NewReader(os.Stdin)
+
+			// reade license key from commandline
+			fmt.Printf("Please enter valid license key\n\n-> ")
+			licenseKey, _ = read.ReadString('\n')
+			licenseKey = strings.Replace(licenseKey, "\n", "", -1)
+		} else {
+			// read license
+			data, err := ioutil.ReadFile(licensepath)
+			utils.CheckErrorPrintFatal(err)
+
+			licenseKey = strings.Replace(strings.TrimSpace(string(data)), "\n", "", -1)
+		}
+
+		// validate user input and check for some possible exploit cases
+		err = license.ValidateOrKill(licenseKey)
+		utils.CheckErrorPrintFatal(err)
+
+		// Now we make a json string with our machineID and license key
+		pair, err := license.NewPair(licenseKey, machineID)
+		utils.CheckErrorPrintFatal(err)
+
+		jsonString, err := pair.Marshal()
+		utils.CheckErrorPrintFatal(err)
+
+		// Now we send our key to the backend server, if err != nil the key is not valid, already used or expired
+		err = license.Call(jsonString, licenseSystemBackend)
+		utils.CheckErrorPrintFatal(err)
+
+		// write license
+		ioutil.WriteFile(licensepath, []byte(licenseKey), 0644)
+	}
+
 	// check if the config file exist
 	if _, err := os.Stat(configpath); os.IsNotExist(err) {
-		log.Printf("no config file found: %s\n", configpath)
+		fmt.Printf("no config file found: %s\n", configpath)
 
 		conf := data.NewUserValues()
 
@@ -46,7 +97,8 @@ func init() {
 		err = conf.Write(configpath)
 		utils.CheckErrorFatal(err)
 
-		log.Fatalf("successfull creating empty config file: %s\n", configpath)
+		fmt.Printf("successfull creating default config file: %s\n", configpath)
+		os.Exit(1)
 	}
 
 	// Now we load our config
@@ -54,9 +106,8 @@ func init() {
 	err = conf.Open(configpath)
 	utils.CheckErrorFatal(err)
 
-	// Generate unique computer identifier
-	machineID, err = utils.GenerateID(appID)
-	utils.CheckErrorFatal(err)
+	// parse and validate commandline args
+	parseFlags()
 }
 
 func main() {
@@ -192,7 +243,7 @@ func main() {
 				return err
 			}
 
-			pair, err := data.NewPair(validData, notFoundData, machineID)
+			pair, err := uploader.NewPair(validData, notFoundData, machineID)
 			if err != nil {
 				return err
 			}

@@ -6,15 +6,15 @@ import (
 
 // Host struct holding data for host addr and port
 type Host struct {
-	host value
-	port value
+	host Value
+	port Value
 }
 
 // NewHost returns Host pointer
 func NewHost(host, port string) *Host {
 	return &Host{
-		host: value(host),
-		port: value(port),
+		host: Value(host),
+		port: Value(port),
 	}
 }
 

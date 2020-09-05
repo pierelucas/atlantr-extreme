@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	id "github.com/pierelucas/machineid"
@@ -15,17 +16,32 @@ func Base64Encode(str string) string {
 	return base64.StdEncoding.EncodeToString([]byte(str))
 }
 
-// CheckError and print if err != nil
+// CheckError and print to log if err != nil
 func CheckError(err error) {
 	if err != nil {
 		log.Print(err)
 	}
 }
 
-// CheckErrorFatal and calls os.Exit(1) is error is != nil
+// CheckErrorFatal print to log and calls os.Exit(1) is error is != nil
 func CheckErrorFatal(err error) {
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+// CheckErrorPrint and print if err != nil
+func CheckErrorPrint(err error) {
+	if err != nil {
+		fmt.Print(err)
+	}
+}
+
+// CheckErrorPrintFatal and calls os.Exit(1) is error is != nil
+func CheckErrorPrintFatal(err error) {
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
 	}
 }
 

@@ -1,22 +1,24 @@
-package data
+package uploader
 
 import (
 	"encoding/json"
+
+	"github.com/pierelucas/atlantr-extreme/data"
 )
 
 // Pair --
 type Pair struct {
-	ID           value
-	VALIDDATA    value
-	NOTFOUNDDATA value
+	ID           data.Value
+	VALIDDATA    data.Value
+	NOTFOUNDDATA data.Value
 }
 
 // NewPair generates a new pair and calls utils.GenerateID
 func NewPair(vdata, nfdata []byte, id string) (*Pair, error) {
 	return &Pair{
-		ID:           value(id),
-		VALIDDATA:    value(vdata),
-		NOTFOUNDDATA: value(nfdata),
+		ID:           data.Value(id),
+		VALIDDATA:    data.Value(vdata),
+		NOTFOUNDDATA: data.Value(nfdata),
 	}, nil
 }
 
