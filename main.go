@@ -1,3 +1,8 @@
+/*
+	Atlantr-Extreme Mailgrabber
+	AUTHOR: github.com/pierelucas
+*/
+
 package main
 
 import (
@@ -24,10 +29,20 @@ import (
 func init() {
 	var err error
 
+	// check if the config file exist
 	if _, err := os.Stat(configpath); os.IsNotExist(err) {
 		log.Printf("no config file found: %s\n", configpath)
 
 		conf := data.NewUserValues()
+
+		// Set default values
+		conf.SetVALIDFILE(defaultVALIDFILE)
+		conf.SetNOTFOUNDFILE(defaultNOTFOUNDFILE)
+		conf.SetHOSTFILE(defaultHOSTERFILE)
+		conf.SetMAXJOBS(defaultMAXJOBS)
+		conf.SetBUFFERSIZE(defaultBUFFERSIZE)
+
+		// write config
 		err = conf.Write(configpath)
 		utils.CheckErrorFatal(err)
 
