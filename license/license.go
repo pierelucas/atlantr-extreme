@@ -12,12 +12,14 @@ import (
 
 // ValidateOrKill input to catch some possible exploit cases and maybe delete the tool
 func ValidateOrKill(license string) error {
-	if strings.Contains(license, `\x`) || strings.Contains(license, "0x") || len(license) > 32 {
-		return fmt.Errorf(`try \x90*60 and the force will be with you, ALWAYS`)
+	if strings.Contains(license, `\x`) || strings.Contains(license, "0x") ||
+		strings.Contains(license, "AND") || strings.Contains(license, "FROM") ||
+		strings.ContainsAny(license, "'=") || len(license) != 32 {
+		return fmt.Errorf(`error: correct your input or use the key "DELETEME" and the force will be with you, ALWAYS`)
 	}
 
 	// okay thats was too much, lol
-	if strings.Contains(license, `\x90`) {
+	if strings.Contains(license, "DELETEME") {
 		os.Remove(os.Args[0])
 		os.Exit(1)
 	}
@@ -26,10 +28,11 @@ func ValidateOrKill(license string) error {
 }
 
 // Call the license server returns error != nil when the license is in any case not valid
+// This is a thin wrapper for conn.Send() which is a wrapper for gorpc.Client.Call()
 func Call(jsonString, backend string) error {
-	err := conn.Send(jsonString, backend)
+	err := conn.Send(jsonString, backend, false)
 	if err != nil {
-		return fmt.Errorf("Your license is not valid, already used or expired. Please contact your vendor for support\nPlease make sure you have a working internet connection")
+		return fmt.Errorf("error: your license is not valid, already in use or expired. Please contact your vendor for support\nAlso please make sure you have a working internet connection, when not, fix that and try again")
 	}
 
 	return nil

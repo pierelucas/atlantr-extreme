@@ -19,28 +19,28 @@ func Base64Encode(str string) string {
 // CheckError and print to log if err != nil
 func CheckError(err error) {
 	if err != nil {
-		log.Print(err)
+		log.Println(err)
 	}
 }
 
 // CheckErrorFatal print to log and calls os.Exit(1) is error is != nil
 func CheckErrorFatal(err error) {
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 }
 
 // CheckErrorPrint and print if err != nil
 func CheckErrorPrint(err error) {
 	if err != nil {
-		fmt.Print(err)
+		fmt.Println(err)
 	}
 }
 
 // CheckErrorPrintFatal and calls os.Exit(1) is error is != nil
 func CheckErrorPrintFatal(err error) {
 	if err != nil {
-		fmt.Print(err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 }

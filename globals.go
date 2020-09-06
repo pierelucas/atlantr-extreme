@@ -6,7 +6,7 @@ const (
 	upload  = false
 	backend = "localhost:56650"
 
-	licenseSystem        = false
+	licenseSystem        = true
 	licenseSystemBackend = "localhost:56651"
 	licensepath          = "license.dat"
 
@@ -18,6 +18,8 @@ const (
 	defaultHOSTERFILE   = "hosters.txt"
 	defaultMAXJOBS      = 100
 	defaultBUFFERSIZE   = 1
+
+	debug = true
 )
 
 var (
