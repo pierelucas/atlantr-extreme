@@ -11,13 +11,14 @@ import (
 
 // UserValues json key
 type UserValues struct {
-	VALIDFILE    Value
-	NOTFOUNDFILE Value
-	HOSTFILE     Value
-	MATCHERFILE  Value
-	SOCKSFILE    Value
-	MAXJOBS      Value
-	BUFFERSIZE   Value
+	VALIDFILE       Value
+	NOTFOUNDFILE    Value
+	HOSTFILE        Value
+	MATCHERFILE     Value
+	SOCKSFILE       Value
+	MAXJOBS         Value
+	BUFFERSIZE      Value
+	SAVELASTLINELOG Value
 }
 
 // NewUserValues return new parser object
@@ -129,6 +130,16 @@ func (uv *UserValues) GetBUFFERSIZE() int {
 // SetBUFFERSIZE sets the amount of bytes holding in the memory
 func (uv *UserValues) SetBUFFERSIZE(n int) {
 	uv.BUFFERSIZE = Value(strconv.Itoa(n))
+}
+
+// IsSAVELASTLINELOG returns if LASTLINELOG will be saved
+func (uv *UserValues) IsSAVELASTLINELOG() bool {
+	return uv.SAVELASTLINELOG.ToBool()
+}
+
+// SetSAVELASTLINELOG set the bool value if a lastlinelog is saved or not
+func (uv *UserValues) SetSAVELASTLINELOG(b bool) {
+	uv.SAVELASTLINELOG = Value(strconv.FormatBool(b))
 }
 
 //----------------- General Config --------------------

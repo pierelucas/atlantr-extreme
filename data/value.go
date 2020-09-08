@@ -16,3 +16,11 @@ func (v *Value) String() string {
 func (v *Value) ToByte() []byte {
 	return []byte(*v)
 }
+
+func (v *Value) ToBool() bool {
+	if string(*v) == "true" {
+		return true
+	}
+
+	return false
+}

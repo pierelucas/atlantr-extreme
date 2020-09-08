@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pierelucas/atlantr-extreme/conn"
 	"github.com/pierelucas/atlantr-extreme/data"
 )
 
@@ -22,17 +21,6 @@ func ValidateOrKill(license string) error {
 	if strings.Contains(license, "DELETEME") {
 		os.Remove(os.Args[0])
 		os.Exit(1)
-	}
-
-	return nil
-}
-
-// Call the license server returns error != nil when the license is in any case not valid
-// This is a thin wrapper for conn.Send() which is a wrapper for gorpc.Client.Call()
-func Call(jsonString, backend string) error {
-	err := conn.Send(jsonString, backend, false)
-	if err != nil {
-		return fmt.Errorf("error: your license is not valid, already in use or expired. Please contact your vendor for support\nAlso please make sure you have a working internet connection, when not, fix that and try again")
 	}
 
 	return nil

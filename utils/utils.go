@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
@@ -76,4 +77,22 @@ func GenerateID(appID string) (string, error) {
 	}
 
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
+// GotLineCount --
+func GotLineCount(filepath string) (uint64, error) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	var lineCount uint64 = 0
+
+	fileScanner := bufio.NewScanner(file)
+	for fileScanner.Scan() {
+		lineCount++
+	}
+
+	return lineCount, nil
 }

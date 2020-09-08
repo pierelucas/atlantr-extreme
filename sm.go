@@ -18,6 +18,7 @@ type validProxies struct {
 type sm struct {
 	jobCH        chan *Job
 	resultCH     chan *Job
+	uploadCH     chan *Job
 	notFoundCH   chan *Job
 	validProxies *validProxies
 }

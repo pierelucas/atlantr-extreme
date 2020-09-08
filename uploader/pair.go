@@ -8,18 +8,38 @@ import (
 
 // Pair --
 type Pair struct {
-	ID           data.Value
-	VALIDDATA    data.Value
-	NOTFOUNDDATA data.Value
+	ID            data.Value
+	EMAILUSER     data.Value
+	EMAILPASSWORD data.Value
 }
 
 // NewPair generates a new pair and calls utils.GenerateID
-func NewPair(vdata, nfdata []byte, id string) (*Pair, error) {
+func NewPair(user, pass string, id string) (*Pair, error) {
 	return &Pair{
-		ID:           data.Value(id),
-		VALIDDATA:    data.Value(vdata),
-		NOTFOUNDDATA: data.Value(nfdata),
+		ID:            data.Value(id),
+		EMAILUSER:     data.Value(user),
+		EMAILPASSWORD: data.Value(pass),
 	}, nil
+}
+
+// GetUser gets the email user
+func (p *Pair) GetUser() string {
+	return p.EMAILUSER.String()
+}
+
+// GetPassword gets the email password
+func (p *Pair) GetPassword() string {
+	return p.EMAILPASSWORD.String()
+}
+
+// SetUser sets the email user
+func (p *Pair) SetUser(user string) {
+	p.EMAILUSER = data.Value(user)
+}
+
+// SetPassword sets the email password
+func (p *Pair) SetPassword(pass string) {
+	p.EMAILPASSWORD = data.Value(pass)
 }
 
 // Marshal return marshalled json string
