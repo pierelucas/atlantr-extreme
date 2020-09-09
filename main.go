@@ -20,6 +20,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/k0kubun/go-ansi"
+	"github.com/schollz/progressbar/v3"
+	pbar "github.com/schollz/progressbar/v3"
+
 	"github.com/pierelucas/atlantr-extreme/conn"
 	"github.com/pierelucas/atlantr-extreme/license"
 
@@ -36,7 +40,7 @@ func init() {
 
 	// Generate unique computer identifier
 	machineID, err = utils.GenerateID(appID)
-	utils.CheckErrorFatal(err)
+	utils.CheckErrorPrintFatal(err)
 
 	// check for a valid license if licenseSystem is set to true
 	// We do this before any user input or any input validation can happen
@@ -50,7 +54,7 @@ func init() {
 			read := bufio.NewReader(os.Stdin)
 
 			// reade license key from commandline
-			fmt.Printf("Please enter a valid license key\n\n-> ")
+			fmt.Printf("Please enter license key\n\n-> ")
 			licenseKey, _ = read.ReadString('\n')
 			licenseKey = strings.Replace(licenseKey, "\n", "", -1)
 		} else {
@@ -99,7 +103,7 @@ func init() {
 
 		// write config
 		err = conf.Write(configpath)
-		utils.CheckErrorFatal(err)
+		utils.CheckErrorPrintFatal(err)
 
 		fmt.Printf("successfull creating default config file: %s\n", configpath)
 		os.Exit(1)
@@ -108,14 +112,18 @@ func init() {
 	// Now we load our config
 	conf = data.NewConf()
 	err = conf.Open(configpath)
-	utils.CheckErrorFatal(err)
+	utils.CheckErrorPrintFatal(err)
 
 	// parse and validate commandline args
 	parseFlags()
+
+	// Got lineCount from mail:pass input file
+	lineCount, err = utils.GotLineCount(*flagINPUT)
+	utils.CheckErrorPrintFatal(err)
 }
 
 func saveLastLineLog() error {
-	log.Println("saving lastlinelog")
+	utils.MultiLogf("saving lastlinelog\n")
 
 	lastlinefinal := atomic.LoadUint64(&lastline)
 	d1 := []byte(strconv.Itoa(int(lastlinefinal)))
@@ -135,18 +143,29 @@ func main() {
 	var err error
 
 	// set-up logging
-	log.SetFlags(log.LstdFlags)
-	log.SetPrefix("Atlantr Extreme\t")
-	if *flagLOGOUTPUT != "" {
-		f, err := os.OpenFile(*flagLOGOUTPUT, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f := func() *os.File {
+		log.SetFlags(log.LstdFlags)
+		log.SetPrefix("Atlantr Extreme\t")
+
+		var logOut string
+		switch *flagLOGOUTPUT {
+		case "":
+			logOut = defaultLOGFILENAME
+		default:
+			logOut = *flagLOGOUTPUT
+		}
+
+		f, err := os.OpenFile(logOut, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		utils.CheckErrorFatal(err)
-		defer f.Close() // defer = LIFO
 
 		log.SetOutput(f) // set logfile
-	}
+
+		return f
+	}()
+	defer f.Close() // defer = LIFO
 
 	// Show that the programm is startign properly
-	log.Println("Atlantr-Extreme is starting...")
+	utils.MultiLogf("Atlantr-Extreme is starting...\n")
 
 	// context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -156,7 +175,7 @@ func main() {
 	go func() {
 		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 		<-c
-		log.Println("ABORT: you pressed ctrl+c")
+		utils.MultiLogf("ABORT: you pressed ctrl+c\n")
 		cancel()
 	}()
 
@@ -167,7 +186,7 @@ func main() {
 
 	// Parse matcherData, that is the data holding several service names for mail filtering
 	if conf.GetPROCESSMAILS() {
-		log.Println("loading matchers")
+		utils.MultiLogf("loading matchers\n")
 		matcherData, err = parse.Matchers(conf.USERVALUE.GetMATCHERFILE())
 		utils.CheckErrorFatal(err)
 	}
@@ -175,12 +194,12 @@ func main() {
 	// Parse Startline
 	var startLine int = 0
 	if *flagLASTLINELOG != "" {
-		log.Println("loading lastlinelog")
+		utils.MultiLogf("loading lastlinelog\n")
 		startLine, err = parse.LastLineLog(*flagLASTLINELOG)
 		utils.CheckErrorFatal(err)
 		startLine++
 		lastline = uint64(startLine)
-		log.Printf("resuming %s from line: %d\n", *flagINPUT, startLine)
+		utils.MultiLogf("resuming %s from line: %d\n", *flagINPUT, startLine)
 	}
 
 	// Now we make our needed channels and parse our proxies when USESOCKS is true otherwise validProxies is nil
@@ -191,7 +210,7 @@ func main() {
 		notFoundCH: make(chan *Job, 1),
 		validProxies: func() *validProxies {
 			if conf.GetUSESOCKS() {
-				log.Println("loading socks")
+				utils.MultiLogf("loading socks\n")
 				checkTimeout := time.Second * 3
 				socksCheckWorker := 100
 				cURL := "https://api.ipify.org/?format=test"
@@ -202,12 +221,27 @@ func main() {
 		}(),
 	}
 
+	// make progressbar
+	bar := pbar.NewOptions(int(lineCount),
+		progressbar.OptionSetWriter(ansi.NewAnsiStdout()),
+		progressbar.OptionEnableColorCodes(true),
+		progressbar.OptionShowBytes(false),
+		progressbar.OptionSetWidth(15),
+		progressbar.OptionSetDescription("[cyan][reset]Checking Mails..."),
+		progressbar.OptionSetTheme(progressbar.Theme{
+			Saucer:        "[green]=[reset]",
+			SaucerHead:    "[green]>[reset]",
+			SaucerPadding: " ",
+			BarStart:      "[",
+			BarEnd:        "]",
+		}))
+
 	// Now we start our workers but wait on each routine until startCH is closed
 	handlerWG := &sync.WaitGroup{}
 	startCH := make(chan struct{})
 	for i := 1; i < conf.GetWorkers(); i++ {
 		handlerWG.Add(1)
-		go WorkerStateMachine(ctx, smobj, startCH, handlerWG)
+		go WorkerStateMachine(ctx, smobj, startCH, handlerWG, bar)
 	}
 
 	// We need a second waitgroup for our writer and uploader
@@ -221,7 +255,7 @@ func main() {
 
 	// Start all routines
 	go func() {
-		log.Println("routines are starting now")
+		utils.MultiLogf("routines are starting now\n")
 		close(startCH)
 	}()
 
@@ -232,7 +266,7 @@ func main() {
 		close(smobj.resultCH) // close the writer and upload channels and let the Writer() and Uploader() routines begin to shutdown
 		close(smobj.uploadCH)
 
-		log.Println("routines finish and shutting down now, clean-up is starting and files will be written")
+		utils.MultiLogf("routines finish and shutting down now, clean-up is starting and files will be written\n")
 		workerWG.Wait() // Wait till the last bytes are written and uploads are finished
 		cancel()
 	}()
@@ -245,7 +279,7 @@ func main() {
 		saveLastLineLog()
 	}
 
-	log.Println("Atlantr-Extreme is shutting down...")
+	utils.MultiLogf("Atlantr-Extreme is shutting down...\n")
 	time.Sleep(time.Second) // chill down
 
 	return // EXIT_SUCCESS

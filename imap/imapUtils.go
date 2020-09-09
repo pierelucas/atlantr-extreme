@@ -219,6 +219,8 @@ func connextWithSocks5(socksAddr string, addr string) (*client.Client, error) {
 }
 
 func appendStringToFile(fileName string, text string) {
+	fileName += ".txt" // adding .txt to file cause maybe some noobish windows users have problems to open the file
+
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	utils.CheckError(err)
 	defer f.Close()

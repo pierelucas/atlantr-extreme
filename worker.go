@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	pbar "github.com/schollz/progressbar/v3"
+
 	"github.com/pierelucas/atlantr-extreme/uploader"
 
 	"github.com/pierelucas/atlantr-extreme/conn"
@@ -25,7 +27,7 @@ import (
 )
 
 // WorkerStateMachine --
-func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{}, wg *sync.WaitGroup) {
+func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{}, wg *sync.WaitGroup, bar *pbar.ProgressBar) {
 	defer wg.Done()
 
 	<-startCH // Wait till the main routine is ready
@@ -55,6 +57,9 @@ func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{},
 			hostToGet := strings.Split(j.User, "@")[1]
 			hoster, ok := hosterData[hostToGet]
 			if !ok {
+				atomic.AddUint64(&lastline, 1) // add lastline
+				bar.Add(1)                     // Add processed mail to progressbar before continue the loop
+
 				log.Printf("%s not found", hostToGet)
 				smobj.notFoundCH <- j
 				uploadHandle(j, smobj.uploadCH)
@@ -82,10 +87,16 @@ func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{},
 			// Now we call the IMAP Handler
 			valid, err := imaper.IMAPutil(socksAddr, addr, j.User, j.Pass)
 			if err != nil {
+				atomic.AddUint64(&lastline, 1) // add lastline
+				bar.Add(1)                     // Add processed mail to progressbar before continue the loop
+
 				log.Printf("%v : %s\n", err, j.User)
 				uploadHandle(j, smobj.uploadCH)
 				continue
 			}
+
+			atomic.AddUint64(&lastline, 1) // add lastline
+			bar.Add(1)                     // Add processed mail to progressbar before continue the loop
 
 			// When the result is valid, send the job in the resultCH channel to the writer function
 			switch valid {
@@ -135,7 +146,6 @@ func Producer(ctx context.Context, smobj *sm, path string, startLine int, startC
 			}
 
 			smobj.jobCH <- &Job{User: user, Pass: pass, lCount: lCount}
-			atomic.AddUint64(&lastline, 1) // add lastline
 		}
 	}
 	close(smobj.jobCH)

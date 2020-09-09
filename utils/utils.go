@@ -46,6 +46,12 @@ func CheckErrorPrintFatal(err error) {
 	}
 }
 
+// MultiLogf writes to logger and standard output
+func MultiLogf(format string, a ...interface{}) {
+	fmt.Printf(format, a...)
+	log.Printf(format, a...)
+}
+
 func shuffle(r rune) rune {
 	if r >= 'C' && r <= 'y' {
 		if r >= 'm' {
@@ -81,6 +87,11 @@ func GenerateID(appID string) (string, error) {
 
 // GotLineCount --
 func GotLineCount(filepath string) (uint64, error) {
+	// We check if the file exists
+	if _, err := os.Stat(filepath); os.IsNotExist(err) {
+		return 0, err
+	}
+
 	file, err := os.Open(filepath)
 	if err != nil {
 		return 0, err

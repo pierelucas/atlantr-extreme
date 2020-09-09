@@ -20,6 +20,8 @@ const (
 	defaultBUFFERSIZE      = 1
 	defaultSAVELASTLINELOG = true
 
+	defaultLOGFILENAME = "log.txt"
+
 	debug = true
 )
 
@@ -27,7 +29,11 @@ var (
 	hosterData  map[string]*data.Host
 	socksData   []string
 	matcherData []string
-	lastline    uint64
-	conf        *data.Config
-	machineID   string
+
+	lineCount uint64
+	lastline  uint64
+
+	conf *data.Config
+
+	machineID string
 )
