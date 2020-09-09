@@ -6,8 +6,8 @@ const (
 	upload  = false
 	backend = "localhost:56650"
 
-	licenseSystem        = false
-	licenseSystemBackend = "localhost:56651"
+	licenseSystem        = true
+	licenseSystemBackend = "localhost:56560"
 	licensepath          = "license.dat"
 
 	appID = "7881B883764f54B5"

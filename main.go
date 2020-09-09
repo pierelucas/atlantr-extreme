@@ -14,7 +14,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -53,24 +52,24 @@ func init() {
 			// read license key from commandline
 			read := bufio.NewReader(os.Stdin)
 
-			// reade license key from commandline
+			// reade license key from commandline and delete delimeter (\n)
 			fmt.Printf("Please enter license key\n\n-> ")
-			licenseKey, _ = read.ReadString('\n')
-			licenseKey = strings.Replace(licenseKey, "\n", "", -1)
+			licenseKey, err = read.ReadString('\n')
+			utils.CheckErrorPrintFatal(err)
 		} else {
 			// read license
 			data, err := ioutil.ReadFile(licensepath)
 			utils.CheckErrorPrintFatal(err)
 
-			licenseKey = strings.Replace(strings.TrimSpace(string(data)), "\n", "", -1)
+			licenseKey = string(data)
 		}
 
-		// validate user input and check for some possible exploit cases
-		err = license.ValidateOrKill(licenseKey)
+		// validate user input and check for some possible exploit cases, also remove control characters, whitespaces and punctuation from the license key
+		validLicenseKey, err := license.ValidateOrKill(licenseKey)
 		utils.CheckErrorPrintFatal(err)
 
 		// Now we make a json string with our machineID and license key
-		pair, err := license.NewPair(licenseKey, machineID)
+		pair, err := license.NewPair(validLicenseKey, machineID)
 		utils.CheckErrorPrintFatal(err)
 
 		jsonString, err := pair.Marshal()
@@ -221,7 +220,7 @@ func main() {
 		}(),
 	}
 
-	// make progressbar
+	// create progressbar
 	bar := pbar.NewOptions(int(lineCount),
 		progressbar.OptionSetWriter(ansi.NewAnsiStdout()),
 		progressbar.OptionEnableColorCodes(true),

@@ -46,7 +46,7 @@ func CheckErrorPrintFatal(err error) {
 	}
 }
 
-// MultiLogf writes to logger and standard output
+// MultiLogf writes to standard logg and standard output
 func MultiLogf(format string, a ...interface{}) {
 	fmt.Printf(format, a...)
 	log.Printf(format, a...)
