@@ -15,7 +15,6 @@ import (
 	"os/signal"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -132,7 +131,7 @@ func init() {
 func saveLastLineLog() error {
 	utils.MultiLogf("starting saving lastlinelog\n")
 
-	lastlinefinal := atomic.LoadInt32(&lastLine)
+	lastlinefinal := llcounter.value()
 	d1 := []byte(strconv.Itoa(int(lastlinefinal)))
 
 	t := time.Now()
@@ -203,6 +202,9 @@ func main() {
 	lineCount, err = utils.GotLineCount(*flagINPUT)
 	utils.CheckErrorPrintFatal(err)
 
+	// initalize lineCounte
+	llcounter = newLineCounter()
+
 	// Parse Startline
 	var startLine int = 0
 	if *flagLASTLINELOG != "" {
@@ -210,10 +212,8 @@ func main() {
 		startLine, err = parse.LastLineLog(*flagLASTLINELOG)
 		utils.CheckErrorFatal(err)
 		startLine++
-		lastLine = int32(startLine)
+		llcounter.add(int32(startLine))
 		utils.MultiLogf("resuming %s from line: %d\n", *flagINPUT, startLine)
-	} else {
-		lastLine = 0
 	}
 
 	// Now we make our needed channels and parse our proxies when USESOCKS is true otherwise validProxies is nil
@@ -271,7 +271,7 @@ func main() {
 	go func() {
 		utils.MultiLogf("routines are starting now\n")
 
-		bar.Add(1 + int(lastLine)) // display the progressbar and start from the lastline if lastline != 0
+		bar.Add(1 + int(llcounter.value())) // display the progressbar and start from the lastline if lastline != 0
 
 		close(startCH)
 	}()

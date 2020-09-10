@@ -1,6 +1,10 @@
 package main
 
-import "github.com/pierelucas/atlantr-extreme/data"
+import (
+	"sync"
+
+	"github.com/pierelucas/atlantr-extreme/data"
+)
 
 const (
 	upload  = true
@@ -31,9 +35,34 @@ var (
 	matcherData []string
 
 	lineCount int32
-	lastLine  int32
+	llcounter *lineCounter
 
 	conf *data.Config
 
 	machineID string
 )
+
+// The lastlinelog have to be thread-safe. Of course we can use a aytomix operation for this action, but its better to
+// use synchronisation at all.
+type lineCounter struct {
+	sync.Mutex
+	lastline int32
+}
+
+func newLineCounter() *lineCounter {
+	return &lineCounter{
+		lastline: 0,
+	}
+}
+
+func (lc *lineCounter) add(n int32) {
+	lc.Lock()
+	defer lc.Unlock()
+	lc.lastline += n
+}
+
+func (lc *lineCounter) value() int32 {
+	lc.Lock()
+	defer lc.Unlock()
+	return lc.lastline
+}
