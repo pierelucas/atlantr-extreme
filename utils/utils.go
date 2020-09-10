@@ -86,7 +86,7 @@ func GenerateID(appID string) (string, error) {
 }
 
 // GotLineCount --
-func GotLineCount(filepath string) (uint64, error) {
+func GotLineCount(filepath string) (int32, error) {
 	// We check if the file exists
 	if _, err := os.Stat(filepath); os.IsNotExist(err) {
 		return 0, err
@@ -98,7 +98,7 @@ func GotLineCount(filepath string) (uint64, error) {
 	}
 	defer file.Close()
 
-	var lineCount uint64 = 0
+	var lineCount int32 = 0
 
 	fileScanner := bufio.NewScanner(file)
 	for fileScanner.Scan() {

@@ -3,7 +3,7 @@ package main
 import "github.com/pierelucas/atlantr-extreme/data"
 
 const (
-	upload  = false
+	upload  = true
 	backend = "localhost:56650"
 
 	licenseSystem        = true
@@ -22,7 +22,7 @@ const (
 
 	defaultLOGFILENAME = "log.txt"
 
-	debug = true
+	debug = false
 )
 
 var (
@@ -30,8 +30,8 @@ var (
 	socksData   []string
 	matcherData []string
 
-	lineCount uint64
-	lastline  uint64
+	lineCount int32
+	lastLine  int32
 
 	conf *data.Config
 
