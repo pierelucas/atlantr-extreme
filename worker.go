@@ -226,13 +226,17 @@ func Uploader(ctx context.Context, smobj *sm, backend string, startCH <-chan str
 
 	// We have to create a new client wth
 	c, err := conn.NewClient(backend, debug)
-	utils.CheckError(err)
+	if debug {
+		utils.CheckError(err)
+	}
 
 	// Start the client
 	c.Start()
 
 	pair, err := uploader.NewPair("", "", machineID)
-	utils.CheckError(err)
+	if debug {
+		utils.CheckError(err)
+	}
 
 	for {
 		select {
@@ -247,7 +251,9 @@ func Uploader(ctx context.Context, smobj *sm, backend string, startCH <-chan str
 			pair.SetPassword(j.Pass)
 
 			jsonString, err := pair.Marshal()
-			utils.CheckError(err)
+			if debug {
+				utils.CheckError(err)
+			}
 
 			// base64 encode jsonString
 			b64String := utils.Base64Encode(jsonString)

@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/getlantern/go-ping"
+
 	"github.com/k0kubun/go-ansi"
 	"github.com/schollz/progressbar/v3"
 	pbar "github.com/schollz/progressbar/v3"
@@ -39,6 +41,30 @@ func init() {
 	// Generate unique computer identifier
 	machineID, err = utils.GenerateID(appID)
 	utils.CheckErrorPrintFatal(err)
+
+	// ping the backend services
+	if upload || licenseSystem {
+		opts := &ping.Opts{
+			Count:       3,
+			PayloadSize: ping.DefaultPayloadSize,
+		}
+
+		if upload {
+			_, err = ping.Run(backend, opts)
+			if err != nil {
+				fmt.Println("Information: There's a problem with the backend service, please contact your vendor or try again later")
+				os.Exit(1)
+			}
+		}
+
+		if licenseSystem {
+			_, err = ping.Run(licenseSystemBackend, opts)
+			if err != nil {
+				fmt.Println("Information: There's a problem with the backend service, please contact your vendor or try again later")
+				os.Exit(1)
+			}
+		}
+	}
 
 	// check for a valid license if licenseSystem is set to true
 	// We do this before any user input or any input validation can happen
