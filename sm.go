@@ -1,6 +1,12 @@
 package main
 
-import "github.com/pierelucas/atlantr-extreme/proxy"
+import (
+	"math/rand"
+	"sync"
+	"time"
+
+	"github.com/pierelucas/atlantr-extreme/proxy"
+)
 
 // Job --
 type Job struct {
@@ -10,9 +16,18 @@ type Job struct {
 }
 
 type validProxies struct {
+	RWM        sync.RWMutex
 	proxies    <-chan proxy.Proxy
 	validSocks []string
 	len        int
+}
+
+func (v *validProxies) GetRandomSocks() string {
+	rand.Seed(time.Now().UnixNano())
+	v.RWM.RLock()
+	defer v.RWM.RUnlock()
+	rsocks := v.validSocks[rand.Intn(v.len-1)]
+	return rsocks
 }
 
 type sm struct {

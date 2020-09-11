@@ -133,6 +133,8 @@ func init() {
 		conf.SetVALIDFILE(defaultVALIDFILE)
 		conf.SetNOTFOUNDFILE(defaultNOTFOUNDFILE)
 		conf.SetHOSTFILE(defaultHOSTERFILE)
+		conf.SetMATCHERFILE(defaultMATCHERFILE)
+		conf.SetSOCKSFILE(defaultSOCKSFILE)
 		conf.SetMAXJOBS(defaultMAXJOBS)
 		conf.SetBUFFERSIZE(defaultBUFFERSIZE)
 		conf.SetSAVELASTLINELOG(defaultSAVELASTLINELOG)

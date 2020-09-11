@@ -20,6 +20,8 @@ const (
 	defaultVALIDFILE       = "valid"
 	defaultNOTFOUNDFILE    = "notfound"
 	defaultHOSTERFILE      = "hosters.txt"
+	defaultMATCHERFILE     = ""
+	defaultSOCKSFILE       = ""
 	defaultMAXJOBS         = 100
 	defaultBUFFERSIZE      = 1
 	defaultSAVELASTLINELOG = true

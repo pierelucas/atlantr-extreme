@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"runtime"
 	"strconv"
@@ -77,8 +76,7 @@ func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{},
 					socksAddr = fmt.Sprintf("%s:%s", proxie.URL, strconv.Itoa(proxie.Port))
 				case <-time.After(time.Millisecond):
 					socksAddr = func() string {
-						rand.Seed(time.Now().UnixNano())
-						return smobj.validProxies.validSocks[rand.Intn(smobj.validProxies.len-1)]
+						return smobj.validProxies.GetRandomSocks()
 					}()
 				}
 			}
