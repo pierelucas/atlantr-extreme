@@ -283,6 +283,7 @@ func main() {
 		handlerWG.Add(1)
 		go WorkerStateMachine(ctx, smobj, startCH, handlerWG, bar)
 	}
+	utils.MultiLogf("depending on the available logical cpu cores [%d] workers are setting up successfull\n", conf.GetWorkers())
 
 	// We need a second waitgroup for our writer and uploader
 	workerWG := &sync.WaitGroup{}
@@ -295,7 +296,7 @@ func main() {
 
 	// Start all routines
 	go func() {
-		utils.MultiLogf("routines are starting now\n")
+		utils.MultiLogf("workers are starting now\n")
 
 		bar.Add(1 + int(llcounter.value())) // display the progressbar and start from the lastline if lastline != 0
 
