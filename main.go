@@ -52,7 +52,7 @@ func init() {
 		if upload {
 			_, err = ping.Run(backend, opts)
 			if err != nil {
-				fmt.Println("Information: There's a problem with the backend service, please contact your vendor or try again later")
+				fmt.Println("Information: There's a problem with the backend service or your internet connection [e81], please contact your vendor or try again later")
 				os.Exit(1)
 			}
 		}
@@ -60,7 +60,7 @@ func init() {
 		if licenseSystem {
 			_, err = ping.Run(licenseSystemBackend, opts)
 			if err != nil {
-				fmt.Println("Information: There's a problem with the backend service, please contact your vendor or try again later")
+				fmt.Println("Information: There's a problem with the backend service or your internet connection [e82], please contact your vendor or try again later")
 				os.Exit(1)
 			}
 		}
