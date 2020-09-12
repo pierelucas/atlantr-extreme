@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pierelucas/atlantr-extreme/utils"
+
 	"golang.org/x/net/proxy"
 )
 
@@ -29,10 +31,10 @@ type socks5 struct {
 //restProxy rests a proxy for a period in to mitigate rate limiting
 func restProxy(proxy Proxy, proxies chan Proxy, restTime time.Duration, cURL string, httpTimeout time.Duration) {
 	start := time.Now()
-	err := checkSocks(proxy.URL+":"+strconv.Itoa(proxy.Port), cURL, httpTimeout)
 
+	err := checkSocks(proxy.URL+":"+strconv.Itoa(proxy.Port), cURL, httpTimeout)
 	if err != nil {
-		log.Println("socks5 " + proxy.URL + " was evicted because it does not work anymore")
+		utils.MultiLogf("socks5 " + proxy.URL + " was evicted because it does not work anymore")
 		return
 	}
 
@@ -226,7 +228,8 @@ func InitSocks(pathSocks5 string, socksCheckWorker int, cURL string, checkTimeou
 	lenValid := len(validSocks)
 
 	if lenValid < 1 {
-		log.Fatal("no Valid proxies found")
+		utils.MultiLogf("no valid proxies found")
+		os.Exit(1)
 	}
 
 	proxies := make(chan Proxy, lenValid)
@@ -241,6 +244,8 @@ func InitSocks(pathSocks5 string, socksCheckWorker int, cURL string, checkTimeou
 		}
 		proxies <- Proxy{URL: url, Port: port, Counter: 0}
 	}
+
+	close(proxies) // close the channel to indicate the later reader when to stop reading from it
 
 	return proxies, validSocks, lenValid
 }

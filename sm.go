@@ -16,7 +16,7 @@ type Job struct {
 }
 
 type validProxies struct {
-	RWM        sync.RWMutex
+	sync.RWMutex
 	proxies    <-chan proxy.Proxy
 	validSocks []string
 	len        int
@@ -24,8 +24,8 @@ type validProxies struct {
 
 func (v *validProxies) GetRandomSocks() string {
 	rand.Seed(time.Now().UnixNano())
-	v.RWM.RLock()
-	defer v.RWM.RUnlock()
+	v.RLock()
+	defer v.RUnlock()
 	rsocks := v.validSocks[rand.Intn(v.len-1)]
 	return rsocks
 }

@@ -24,8 +24,8 @@ import (
 	"github.com/pierelucas/atlantr-extreme/utils"
 )
 
-// WorkerStateMachine --
-func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{}, wg *sync.WaitGroup, bar *pbar.ProgressBar) {
+// Worker --
+func Worker(ctx context.Context, smobj *sm, startCH <-chan struct{}, wg *sync.WaitGroup, bar *pbar.ProgressBar) {
 	defer wg.Done()
 
 	<-startCH // Wait till the main routine is ready
@@ -67,17 +67,15 @@ func WorkerStateMachine(ctx context.Context, smobj *sm, startCH <-chan struct{},
 			// Got the fulladdres of the host
 			addr := hoster.GetFullAddr()
 
-			// Read proxies from channel, timeout when the channel is empty (closed) or blocking.
-			// TODO: We have to find a better solution for this problem than a timeout
+			// Read proxies from channel, when the channel is empty use a random proxie
 			var socksAddr string
 			if conf.GetUSESOCKS() {
-				select {
-				case proxie := <-smobj.validProxies.proxies:
+				proxie, ok := <-smobj.validProxies.proxies
+				switch ok {
+				case true:
 					socksAddr = fmt.Sprintf("%s:%s", proxie.URL, strconv.Itoa(proxie.Port))
-				case <-time.After(time.Millisecond):
-					socksAddr = func() string {
-						return smobj.validProxies.GetRandomSocks()
-					}()
+				default:
+					socksAddr = smobj.validProxies.GetRandomSocks()
 				}
 			}
 

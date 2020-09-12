@@ -283,7 +283,7 @@ func main() {
 	startCH := make(chan struct{})
 	for i := 1; i < conf.GetWorkers(); i++ {
 		handlerWG.Add(1)
-		go WorkerStateMachine(ctx, smobj, startCH, handlerWG, bar)
+		go Worker(ctx, smobj, startCH, handlerWG, bar)
 	}
 	utils.MultiLogf("depending on the available logical cpu cores [%d] workers are setting up successfull\n", conf.GetWorkers())
 
@@ -295,10 +295,11 @@ func main() {
 	go Writer(ctx, smobj.resultCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetVALIDFILE(), startCH, workerWG)
 	go Writer(ctx, smobj.notFoundCH, conf.USERVALUE.GetBUFFERSIZE(), conf.USERVALUE.GetNOTFOUNDFILE(), startCH, workerWG)
 	go Uploader(ctx, smobj, backend, startCH, workerWG)
+	utils.MultiLogf("Producer, Writer and Upoader are setting up successfull\n")
 
 	// Start all routines
 	go func() {
-		utils.MultiLogf("workers are starting now\n")
+		utils.MultiLogf("all workers are starting now\n")
 
 		bar.Add(1 + int(llcounter.value())) // display the progressbar and start from the lastline if lastline != 0
 

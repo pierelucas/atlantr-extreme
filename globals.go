@@ -47,7 +47,7 @@ var (
 // The lastlinelog have to be thread-safe. Of course we can use a aytomix operation for this action, but its better to
 // use synchronisation at all.
 type lineCounter struct {
-	sync.Mutex
+	sync.RWMutex
 	lastline int32
 }
 
@@ -64,7 +64,7 @@ func (lc *lineCounter) add(n int32) {
 }
 
 func (lc *lineCounter) value() int32 {
-	lc.Lock()
-	defer lc.Unlock()
+	lc.RLock()
+	defer lc.RUnlock()
 	return lc.lastline
 }
