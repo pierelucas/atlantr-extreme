@@ -75,7 +75,7 @@ func init() {
 			utils.CheckErrorPrintFatal(err)
 
 			// Now we make a json string with our machineID and license key
-			pair, err := license.NewPair(validLicenseKey, machineID)
+			pair, err := license.NewPair(validLicenseKey, machineID, appID)
 			utils.CheckErrorPrintFatal(err)
 
 			jsonString, err := pair.Marshal()
@@ -84,7 +84,7 @@ func init() {
 			// Now we send our key to the backend server, if err != nil the key is not valid, already used or expired
 			err = conn.Send(jsonString, licenseSystemBackend, debug)
 			if err != nil {
-				fmt.Println("error: your license is not valid, already in use or expired. Please contact your vendor for support\nAlso please make sure you have a working internet connection, when not, fix that and try again")
+				fmt.Println("error: your license is not valid, already, expired or you use a outdated client. Please contact your vendor for support\nAlso please make sure you have a working internet connection, when not, fix that and try again")
 				os.Exit(1)
 			}
 		}

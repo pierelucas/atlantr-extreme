@@ -34,13 +34,15 @@ func ValidateOrKill(license string) (string, error) {
 type Pair struct {
 	ID      data.Value
 	LICENSE data.Value
+	APPID   data.Value
 }
 
 // NewPair generates a new license pair
-func NewPair(licenseKey, id string) (*Pair, error) {
+func NewPair(licenseKey, id, appID string) (*Pair, error) {
 	return &Pair{
 		ID:      data.Value(id),
 		LICENSE: data.Value(licenseKey),
+		APPID:   data.Value(appID),
 	}, nil
 }
 
