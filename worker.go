@@ -147,7 +147,7 @@ func Producer(ctx context.Context, smobj *sm, path string, startLine int, startC
 }
 
 // Writer --
-func Writer(ctx context.Context, result <-chan *Job, bufferSize int, path string, startCH <-chan struct{}, wg *sync.WaitGroup) {
+func Writer(ctx context.Context, result <-chan *Job, bufferSize int, filepath string, startCH <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	<-startCH // Wait till the main routine is ready
@@ -166,7 +166,7 @@ func Writer(ctx context.Context, result <-chan *Job, bufferSize int, path string
 
 	// We need a better filename
 	t := time.Now()
-	filename := fmt.Sprintf("%s_%s.txt", path, t.Format("2006-01-02-15:04.05"))
+	filename := fmt.Sprintf("%s_%s.txt", filepath, t.Format("2006-01-02-15:04.05"))
 
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
 	utils.CheckErrorFatal(err)
