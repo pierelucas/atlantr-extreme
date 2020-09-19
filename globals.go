@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	upload  = true
+	upload  = false
 	backend = "localhost:56650"
 
-	licenseSystem        = true
+	licenseSystem        = false
 	licenseSystemBackend = "localhost:56560"
 	licensepath          = "license.dat"
 

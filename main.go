@@ -314,6 +314,7 @@ func main() {
 		close(smobj.notFoundCH)
 		close(smobj.uploadCH)
 
+		fmt.Println() // we need this newline because progressbar dont add one at 100%
 		utils.MultiLogf("routines finish and shutting down now, clean-up is starting and files will be written\n")
 		workerWG.Wait() // Wait till the last bytes are written and uploads are finished
 		cancel()
