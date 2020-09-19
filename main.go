@@ -311,6 +311,7 @@ func main() {
 	go func() {
 		handlerWG.Wait()
 		close(smobj.resultCH) // close the writer and upload channels and let the Writer() and Uploader() routines begin to shutdown
+		close(smobj.notFoundCH)
 		close(smobj.uploadCH)
 
 		utils.MultiLogf("routines finish and shutting down now, clean-up is starting and files will be written\n")

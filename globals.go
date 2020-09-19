@@ -33,7 +33,6 @@ const (
 
 var (
 	hosterData  map[string]*data.Host
-	socksData   []string
 	matcherData []string
 
 	lineCount int32
