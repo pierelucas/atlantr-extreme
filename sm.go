@@ -26,7 +26,7 @@ func (v *validProxies) GetRandomSocks() string {
 	rand.Seed(time.Now().UnixNano())
 	v.RLock()
 	defer v.RUnlock()
-	rsocks := v.validSocks[rand.Intn(v.len-1)]
+	rsocks := v.validSocks[rand.Intn(v.len)]
 	return rsocks
 }
 

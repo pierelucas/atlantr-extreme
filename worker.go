@@ -31,7 +31,14 @@ func Worker(ctx context.Context, smobj *sm, startCH <-chan struct{}, wg *sync.Wa
 	<-startCH // Wait till the main routine is ready
 
 	// initalize a new imaper struct
-	imaper := imap.NewImap(matcherData, conf.GetUSESOCKS(), conf.GetPROCESSMAILS())
+	imaper := imap.NewImap(
+		matcherData,
+		conf.GetUSESOCKS(),
+		conf.GetPROCESSMAILS(),
+		conf.USERVALUE.IsSAVEEMAILS(),
+		uint32(conf.USERVALUE.GetMAXEMAILSTOGET()),
+		conf.USERVALUE.GetOUTPUTBASEDIR(),
+	)
 
 	// We define a function for handle te upload when upload == true
 	uploadHandle := func(j *Job, up chan<- *Job) {

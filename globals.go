@@ -25,6 +25,9 @@ const (
 	defaultMAXJOBS         = 100
 	defaultBUFFERSIZE      = 1
 	defaultSAVELASTLINELOG = true
+	defaultSAVEEMAIL       = true
+	defaultMAXEMAILSTOGET  = 25
+	defaultOUTPUTBASEDIR   = "output"
 
 	defaultLOGFILENAME = "log.txt"
 

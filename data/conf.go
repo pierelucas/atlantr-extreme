@@ -11,14 +11,17 @@ import (
 
 // UserValues json key
 type UserValues struct {
-	VALIDFILE       Value
-	NOTFOUNDFILE    Value
-	HOSTFILE        Value
-	MATCHERFILE     Value
-	SOCKSFILE       Value
-	MAXJOBS         Value
-	BUFFERSIZE      Value
-	SAVELASTLINELOG Value
+	VALIDFILE       Value `json:"validfile"`
+	NOTFOUNDFILE    Value `json:"notfoundfile"`
+	HOSTFILE        Value `json:"hostfile"`
+	MATCHERFILE     Value `json:"matcherfile"`
+	SOCKSFILE       Value `json:"socksfile"`
+	MAXJOBS         Value `json:"maxjobs"`
+	BUFFERSIZE      Value `json:"buffersize"`
+	SAVELASTLINELOG Value `json:"savelastlinelog"`
+	SAVEEMAILS      Value `json:"saveemails"`
+	MAXEMAILSTOGET  Value `json:"maxemailstoget"`
+	OUTPUTBASEDIR   Value `json:"outputbasedir"`
 }
 
 // NewUserValues return new parser object
@@ -140,6 +143,36 @@ func (uv *UserValues) IsSAVELASTLINELOG() bool {
 // SetSAVELASTLINELOG set the bool value if a lastlinelog is saved or not
 func (uv *UserValues) SetSAVELASTLINELOG(b bool) {
 	uv.SAVELASTLINELOG = Value(strconv.FormatBool(b))
+}
+
+// IsSAVEEMAILS returns if SAVEEMAILS is set. As you maybe guess, complete emails will be saved
+func (uv *UserValues) IsSAVEEMAILS() bool {
+	return uv.SAVEEMAILS.ToBool()
+}
+
+// SetSAVEEMAILS set the bool value if SAVEEMAILS will be saved or not
+func (uv *UserValues) SetSAVEEMAILS(b bool) {
+	uv.SAVEEMAILS = Value(strconv.FormatBool(b))
+}
+
+// GetMAXEMAILSTOGET returns the value of the maximal mailbox depth
+func (uv *UserValues) GetMAXEMAILSTOGET() int {
+	return uv.MAXEMAILSTOGET.Int()
+}
+
+// SetMAXEMAILSTOGET sets the maximal mailbox depth
+func (uv *UserValues) SetMAXEMAILSTOGET(n int) {
+	uv.MAXEMAILSTOGET = Value(strconv.Itoa(n))
+}
+
+// GetOUTPUTBASEDIR returns the pathname of the output directory
+func (uv *UserValues) GetOUTPUTBASEDIR() string {
+	return string(uv.OUTPUTBASEDIR)
+}
+
+// SetOUTPUTBASEDIR sets the pathname for the output directory
+func (uv *UserValues) SetOUTPUTBASEDIR(pathname string) {
+	uv.OUTPUTBASEDIR = Value(pathname)
 }
 
 //----------------- General Config --------------------

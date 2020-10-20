@@ -107,3 +107,17 @@ func GotLineCount(filepath string) (int32, error) {
 
 	return lineCount, nil
 }
+
+// CheckDir checks if directory exists and creates it otherwise with perm 0755
+func CheckDir(filepath string) error {
+	var err error
+
+	if _, err = os.Stat(filepath); os.IsNotExist(err) {
+		err = os.Mkdir(filepath, 0755)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

@@ -1,10 +1,12 @@
 package imap
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/pierelucas/atlantr-extreme/utils"
@@ -18,17 +20,23 @@ import (
 
 // Imaper --
 type Imaper struct {
-	sendersToSave  []string
-	useSocks       bool
-	proccessEmails bool
+	SendersToSave    []string
+	UseSocks         bool
+	ProccessEmails   bool
+	DownloadEmails   bool
+	MaxMessagesToGet uint32
+	MatcherBaseDir   string
 }
 
 // NewImap --
-func NewImap(sendersToSave []string, useSocks, proccessEmails bool) *Imaper {
+func NewImap(sendersToSave []string, useSocks, proccessEmails, downloadEmails bool, maxMessagesToGet uint32, baseDir string) *Imaper {
 	return &Imaper{
-		sendersToSave:  sendersToSave,
-		useSocks:       useSocks,
-		proccessEmails: proccessEmails,
+		SendersToSave:    sendersToSave,
+		UseSocks:         useSocks,
+		ProccessEmails:   proccessEmails,
+		DownloadEmails:   downloadEmails,
+		MaxMessagesToGet: maxMessagesToGet,
+		MatcherBaseDir:   baseDir,
 	}
 }
 
@@ -36,7 +44,7 @@ func NewImap(sendersToSave []string, useSocks, proccessEmails bool) *Imaper {
 func (im *Imaper) IMAPutil(socksAddr string, addr string, emailUser string, emailPassword string) (bool, error) {
 	var c *client.Client
 
-	if im.useSocks {
+	if im.UseSocks {
 		cc, err := connextWithSocks5(socksAddr, addr)
 		if err != nil {
 			return false, err
@@ -57,13 +65,14 @@ func (im *Imaper) IMAPutil(socksAddr string, addr string, emailUser string, emai
 		return false, err
 	}
 
-	if im.proccessEmails {
-		inboxProcessing(c, im.sendersToSave)
+	if im.ProccessEmails {
+		inboxProcessing(c, im, emailUser, emailPassword)
 	}
+
 	return true, nil
 }
 
-func inboxProcessing(c *client.Client, sendersToSave []string) {
+func inboxProcessing(c *client.Client, im *Imaper, emailUser, emailPassword string) {
 	// List mailboxes
 	mailboxes := make(chan *imap.MailboxInfo, 100)
 	done := make(chan error, 1)
@@ -81,10 +90,10 @@ func inboxProcessing(c *client.Client, sendersToSave []string) {
 		log.Fatal(err)
 	}
 
-	findMatchingSenders(mailboxList, c, sendersToSave)
+	findMatchingSenders(mailboxList, c, im, emailUser, emailPassword)
 }
 
-func findMatchingSenders(mailboxList []string, c *client.Client, sendersToSave []string) {
+func findMatchingSenders(mailboxList []string, c *client.Client, im *Imaper, emailUser, emailPassword string) {
 	for i := range mailboxList {
 		mbox, err := c.Select(mailboxList[i], true)
 		if err != nil {
@@ -98,10 +107,11 @@ func findMatchingSenders(mailboxList []string, c *client.Client, sendersToSave [
 
 		from := uint32(1)
 		to := mbox.Messages
-		const maxMessagesToGet = 100
-		if mbox.Messages > maxMessagesToGet {
-			to = from + maxMessagesToGet - 1
+
+		if mbox.Messages > im.MaxMessagesToGet {
+			to = from + im.MaxMessagesToGet - 1
 		}
+
 		seqset := new(imap.SeqSet)
 		seqset.AddRange(from, to)
 
@@ -109,7 +119,7 @@ func findMatchingSenders(mailboxList []string, c *client.Client, sendersToSave [
 		var section imap.BodySectionName
 		items := []imap.FetchItem{section.FetchItem()}
 
-		messages := make(chan *imap.Message, maxMessagesToGet+1)
+		messages := make(chan *imap.Message, im.MaxMessagesToGet+1)
 		done := make(chan error, 1)
 
 		go func() {
@@ -150,8 +160,8 @@ func findMatchingSenders(mailboxList []string, c *client.Client, sendersToSave [
 				continue
 			}
 
-			for i := range sendersToSave {
-				if strings.Contains(from[0].Address, sendersToSave[i]) {
+			for i := range im.SendersToSave {
+				if strings.Contains(from[0].Address, im.SendersToSave[i]) {
 					//log.Println(from[0].Address)
 					// Process each message's part
 					for {
@@ -163,26 +173,33 @@ func findMatchingSenders(mailboxList []string, c *client.Client, sendersToSave [
 							continue
 						}
 
+						if !im.DownloadEmails {
+							appendEmailCredentialsToFile(im.MatcherBaseDir, im.SendersToSave[i], emailUser, emailPassword)
+							continue
+						}
+
 						switch h := p.Header.(type) {
 						case *mail.InlineHeader:
 							// This is the message's text (can be plain-text or HTML)
 							b, err := ioutil.ReadAll(p.Body)
 							if err != nil {
 								log.Println("read body", err)
-							} else {
-								bb := strip.StripTags(string(b))
-								//singleSpacePattern := regexp.MustCompile(`\s+`)
-								//bbb := singleSpacePattern.ReplaceAllString(bb, " ")
-								//log.Println(bbb)
-
-								appendStringToFile(sendersToSave[i], bb)
+								continue
 							}
+
+							bb := strip.StripTags(string(b))
+							//singleSpacePattern := regexp.MustCompile(`\s+`)
+							//bbb := singleSpacePattern.ReplaceAllString(bb, " ")
+							//log.Println(bbb)
+
+							appendEmailBodyToFile(im.MatcherBaseDir, im.SendersToSave[i], bb, emailUser, emailPassword)
 						case *mail.AttachmentHeader:
 							// This is an attachment
 							_, err := h.Filename()
 							if err != nil {
 								log.Println(err)
 							}
+
 							//log.Println("Got attachment: %v", filename)
 						}
 					}
@@ -218,15 +235,47 @@ func connextWithSocks5(socksAddr string, addr string) (*client.Client, error) {
 	return c, nil
 }
 
-func appendStringToFile(fileName string, text string) {
-	fileName += ".txt" // adding .txt to file cause maybe some noobish windows users have problems to open the file
+func appendEmailBodyToFile(basedir, fileName string, text, emailUser, emailPassword string) {
+	var err error
 
-	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	matcherDir := "matcherResults"
+
+	err = utils.CheckDir(path.Join(basedir, matcherDir))
+	utils.CheckError(err)
+
+	filepath := path.Join(basedir, matcherDir, fileName+".txt")
+
+	f, err := os.OpenFile(filepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	utils.CheckError(err)
 	defer f.Close()
 
-	divider := "\r\n\r\n$#------------this separates emails---------------#$\r\n\r\n"
+	// make email dividers
+	dividerBegin := fmt.Sprintf("$#------------New Email from: %s:%s---------------#$", emailUser, emailPassword)
+	dividerEnd := "$#------------End Email---------------#$"
 
-	_, err = f.WriteString(text + divider)
+	// wrap the email body with begin and end dividers
+	textWithDividers := fmt.Sprintf("%s\r\n%s\r\n%s\r\n\r\n", dividerBegin, text, dividerEnd)
+
+	_, err = f.WriteString(textWithDividers)
+	utils.CheckError(err)
+}
+
+func appendEmailCredentialsToFile(basedir, fileName string, emailUser, emailPassword string) {
+	var err error
+
+	matcherDir := "matcherResults"
+
+	err = utils.CheckDir(path.Join(basedir, matcherDir))
+	utils.CheckError(err)
+
+	filepath := path.Join(basedir, matcherDir, fileName+".txt")
+
+	f, err := os.OpenFile(filepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	utils.CheckError(err)
+	defer f.Close()
+
+	line := fmt.Sprintf("%s:%s\n", emailUser, emailPassword)
+
+	_, err = f.WriteString(line)
 	utils.CheckError(err)
 }

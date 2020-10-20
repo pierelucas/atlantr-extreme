@@ -138,6 +138,9 @@ func init() {
 		conf.SetMAXJOBS(defaultMAXJOBS)
 		conf.SetBUFFERSIZE(defaultBUFFERSIZE)
 		conf.SetSAVELASTLINELOG(defaultSAVELASTLINELOG)
+		conf.SetSAVEEMAILS(defaultSAVEEMAIL)
+		conf.SetMAXEMAILSTOGET(defaultMAXEMAILSTOGET)
+		conf.SetOUTPUTBASEDIR(defaultOUTPUTBASEDIR)
 
 		// write config
 		err = conf.Write(configpath)
