@@ -1,10 +1,1 @@
-{
-    "VALIDFILE": "valid",
-    "NOTFOUNDFILE": "notfound",
-    "HOSTFILE": "hosters.txt",
-    "MATCHERFILE": "matchers.txt",
-    "SOCKSFILE": "",
-    "MAXJOBS": "100",
-    "BUFFERSIZE": "1",
-    "SAVELASTLINELOG": "true"
-}
+{"validfile":"valid","notfoundfile":"notfound","hostfile":"hosters.txt","matcherfile":"","socksfile":"","maxjobs":"100","buffersize":"1","savelastlinelog":"true","saveemails":"true","maxemailstoget":"25","outputbasedir":"output"}
